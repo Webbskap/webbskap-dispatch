@@ -1,1 +1,16 @@
 project_id = "olavdstyfkyoctgtssjk"
+
+[functions.iframe-auth]
+verify_jwt = false
+
+[functions.webhook-ingest]
+verify_jwt = false
+
+[functions.book-shipment]
+verify_jwt = false
+
+[functions.track-shipment]
+verify_jwt = false
+
+[functions.label-url]
+verify_jwt = false
