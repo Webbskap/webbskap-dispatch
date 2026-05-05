@@ -92,54 +92,48 @@ Deno.serve(async (req) => {
       email: pnCfg.sender_email,
     };
 
-    // Build PostNord EDI request (simplified mapping — adjust per actual contract)
+    // Build PostNord EDI Instruction (v3). Body is the ediInstruction itself.
     const ediBody = {
-      shipment: {
-        senderReference: order?.invoice_no ?? order?.webbskap_order_id,
-        service: { code: draft.service_code ?? pnCfg.default_service_code ?? "17" },
-        consignor: {
-          name: sender.company || sender.name,
-          contact: { name: sender.name, phone: sender.phone, email: sender.email },
-          address: {
-            street1: sender.address,
-            postCode: sender.zip,
-            city: sender.city,
-            countryCode: sender.country ?? "SE",
-          },
-          partyIdentification: { partyId: pnCfg.customer_number },
+      senderReference: order?.invoice_no ?? order?.webbskap_order_id,
+      service: { code: draft.service_code ?? pnCfg.default_service_code ?? "17" },
+      consignor: {
+        name: sender.company || sender.name,
+        contact: { name: sender.name, phone: sender.phone, email: sender.email },
+        address: {
+          street1: sender.address,
+          postCode: sender.zip,
+          city: sender.city,
+          countryCode: sender.country ?? "SE",
         },
-        consignee: {
-          name: ship.name ?? order?.customer_name,
-          contact: { name: ship.name ?? order?.customer_name, phone: ship.phone, email: order?.customer_email },
-          address: {
-            street1: ship.address,
-            street2: ship.address2,
-            postCode: ship.zipCode,
-            city: ship.city,
-            countryCode: ship.country ?? "SE",
-          },
-        },
-        parcels: Array.from({ length: draft.parcels ?? 1 }, () => ({
-          weight: { value: Number(draft.weight_kg ?? 1), unit: "kg" },
-          ...(draft.length_cm && draft.width_cm && draft.height_cm
-            ? {
-                dimensions: {
-                  length: draft.length_cm, width: draft.width_cm, height: draft.height_cm, unit: "cm",
-                },
-              }
-            : {}),
-        })),
-        additionalServices: draft.additional_services ?? [],
+        partyIdentification: { partyId: pnCfg.customer_number },
       },
-      labelFormat: "A4",
+      consignee: {
+        name: ship.name ?? order?.customer_name,
+        contact: { name: ship.name ?? order?.customer_name, phone: ship.phone, email: order?.customer_email },
+        address: {
+          street1: ship.address,
+          street2: ship.address2,
+          postCode: ship.zipCode,
+          city: ship.city,
+          countryCode: ship.country ?? "SE",
+        },
+      },
+      parcels: Array.from({ length: draft.parcels ?? 1 }, () => ({
+        weight: { value: Number(draft.weight_kg ?? 1), unit: "kg" },
+        ...(draft.length_cm && draft.width_cm && draft.height_cm
+          ? { dimensions: { length: draft.length_cm, width: draft.width_cm, height: draft.height_cm, unit: "cm" } }
+          : {}),
+      })),
+      additionalServices: draft.additional_services ?? [],
     };
 
-    const pnRes = await fetch(`${POSTNORD_BASE}/labels/pdf`, {
+    // PostNord v3: apikey is a query parameter; paperSize controls PDF size.
+    const pnUrl = `${POSTNORD_BASE}/labels/pdf?apikey=${encodeURIComponent(pnCfg.api_key)}&paperSize=A4`;
+    const pnRes = await fetch(pnUrl, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
         "Accept": "application/json",
-        "apikey": pnCfg.api_key,
       },
       body: JSON.stringify(ediBody),
     });
