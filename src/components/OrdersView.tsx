@@ -1,0 +1,215 @@
+import { useEffect, useMemo, useState } from "react";
+import { supabase } from "@/integrations/supabase/client";
+import { Tenant } from "@/hooks/useAuthAndTenant";
+import { Card } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { toast } from "sonner";
+
+type Order = any;
+type Draft = any;
+type Shipment = any;
+
+export function OrdersView({ tenant }: { tenant: Tenant }) {
+  const [orders, setOrders] = useState<Order[]>([]);
+  const [drafts, setDrafts] = useState<Record<string, Draft>>({});
+  const [shipments, setShipments] = useState<Record<string, Shipment>>({});
+  const [selected, setSelected] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  const refresh = async () => {
+    const [{ data: o }, { data: d }, { data: s }] = await Promise.all([
+      supabase.from("orders").select("*").eq("tenant_id", tenant.id).order("created_at", { ascending: false }).limit(100),
+      supabase.from("shipment_drafts").select("*").eq("tenant_id", tenant.id),
+      supabase.from("shipments").select("*").eq("tenant_id", tenant.id),
+    ]);
+    setOrders(o ?? []);
+    setDrafts(Object.fromEntries((d ?? []).map((r) => [r.order_id, r])));
+    setShipments(Object.fromEntries((s ?? []).map((r) => [r.order_id, r])));
+    setLoading(false);
+  };
+
+  useEffect(() => {
+    refresh();
+    const ch = supabase.channel(`tenant-${tenant.id}`)
+      .on("postgres_changes", { event: "*", schema: "public", table: "orders", filter: `tenant_id=eq.${tenant.id}` }, refresh)
+      .on("postgres_changes", { event: "*", schema: "public", table: "shipment_drafts", filter: `tenant_id=eq.${tenant.id}` }, refresh)
+      .on("postgres_changes", { event: "*", schema: "public", table: "shipments", filter: `tenant_id=eq.${tenant.id}` }, refresh)
+      .subscribe();
+    return () => { supabase.removeChannel(ch); };
+    // eslint-disable-next-line
+  }, [tenant.id]);
+
+  const sel = orders.find((o) => o.id === selected) ?? null;
+
+  if (loading) return <div className="text-muted-foreground">Laddar ordrar…</div>;
+
+  return (
+    <div className="grid lg:grid-cols-[380px_1fr] gap-4">
+      <Card className="p-2 max-h-[75vh] overflow-auto">
+        {orders.length === 0 && (
+          <div className="p-4 text-sm text-muted-foreground">
+            Inga ordrar än. När en kund handlar i Webbskap-sajten kommer ordern hit.
+          </div>
+        )}
+        {orders.map((o) => {
+          const sh = shipments[o.id];
+          return (
+            <button
+              key={o.id}
+              onClick={() => setSelected(o.id)}
+              className={`w-full text-left p-3 rounded hover:bg-muted ${selected === o.id ? "bg-muted" : ""}`}
+            >
+              <div className="flex items-center justify-between">
+                <div className="font-medium">#{o.invoice_no ?? o.webbskap_order_id}</div>
+                {sh
+                  ? <Badge variant="secondary">{sh.status}</Badge>
+                  : <Badge>{o.status}</Badge>}
+              </div>
+              <div className="text-sm text-muted-foreground truncate">{o.customer_name}</div>
+              <div className="text-xs text-muted-foreground">
+                {o.total} {o.currency ?? ""} · {o.weight ?? "?"} {o.weight_unit}
+              </div>
+            </button>
+          );
+        })}
+      </Card>
+
+      {sel ? (
+        <OrderDetail
+          order={sel}
+          draft={drafts[sel.id]}
+          shipment={shipments[sel.id]}
+          onChanged={refresh}
+        />
+      ) : (
+        <Card className="p-6 text-muted-foreground">Välj en order till vänster.</Card>
+      )}
+    </div>
+  );
+}
+
+function OrderDetail({ order, draft, shipment, onChanged }: any) {
+  const [d, setD] = useState<any>(draft ?? {});
+  const [busy, setBusy] = useState(false);
+  useEffect(() => setD(draft ?? {}), [draft?.id]);
+
+  const ship = order.shipping_address ?? {};
+
+  const saveDraft = async () => {
+    if (!d?.id) return;
+    const { error } = await supabase.from("shipment_drafts").update({
+      service_code: d.service_code, parcels: d.parcels ?? 1,
+      weight_kg: d.weight_kg, length_cm: d.length_cm,
+      width_cm: d.width_cm, height_cm: d.height_cm, notes: d.notes,
+    }).eq("id", d.id);
+    if (error) toast.error(error.message); else toast.success("Utkast sparat");
+  };
+
+  const book = async () => {
+    setBusy(true);
+    await saveDraft();
+    const { data, error } = await supabase.functions.invoke("book-shipment", { body: { draft_id: d.id } });
+    setBusy(false);
+    if (error || (data as any)?.error) {
+      toast.error((data as any)?.error ?? error?.message ?? "Bokning misslyckades");
+    } else {
+      toast.success("Bokat hos PostNord!");
+      onChanged();
+    }
+  };
+
+  const downloadLabel = async () => {
+    const { data, error } = await supabase.functions.invoke("label-url", { body: { shipment_id: shipment.id } });
+    if (error || !(data as any)?.url) toast.error("Kunde inte hämta etikett");
+    else window.open((data as any).url, "_blank");
+  };
+
+  const printPackingSlip = () => {
+    const items = (order.items ?? []) as any[];
+    const html = `<!doctype html><html><head><meta charset="utf-8"><title>Följesedel ${order.invoice_no ?? ""}</title>
+    <style>body{font-family:system-ui;padding:24px;color:#111}h1{margin:0 0 4px}table{width:100%;border-collapse:collapse;margin-top:16px}th,td{text-align:left;padding:8px;border-bottom:1px solid #ddd}</style></head><body>
+    <h1>Följesedel</h1>
+    <div>Order #${order.invoice_no ?? order.webbskap_order_id}</div>
+    <h3 style="margin-top:24px">Levereras till</h3>
+    <div>${ship.name ?? order.customer_name ?? ""}<br>${ship.address ?? ""}<br>${ship.zipCode ?? ""} ${ship.city ?? ""}<br>${ship.country ?? ""}</div>
+    <table><thead><tr><th>Produkt</th><th>SKU</th><th>Antal</th></tr></thead><tbody>
+    ${items.map((i) => `<tr><td>${i.name ?? ""}</td><td>${i.sku ?? ""}</td><td>${i.quantity ?? ""}</td></tr>`).join("")}
+    </tbody></table>
+    <script>window.print()</script></body></html>`;
+    const w = window.open("", "_blank");
+    w?.document.write(html); w?.document.close();
+  };
+
+  return (
+    <Card className="p-6 space-y-5">
+      <div className="flex items-center justify-between">
+        <div>
+          <div className="text-xl font-semibold">#{order.invoice_no ?? order.webbskap_order_id}</div>
+          <div className="text-sm text-muted-foreground">{order.customer_name} · {order.customer_email}</div>
+        </div>
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={printPackingSlip}>Följesedel</Button>
+          {shipment
+            ? <Button onClick={downloadLabel}>Ladda ner fraktsedel</Button>
+            : <Button onClick={book} disabled={busy}>{busy ? "Bokar…" : "Boka & skriv fraktsedel"}</Button>}
+        </div>
+      </div>
+
+      <div className="grid sm:grid-cols-2 gap-6">
+        <section>
+          <h3 className="text-sm font-medium mb-2">Mottagare</h3>
+          <div className="text-sm">
+            {ship.name ?? order.customer_name}<br />
+            {ship.address}<br />{ship.address2}<br />
+            {ship.zipCode} {ship.city}<br />
+            {ship.country} · {ship.phone}
+          </div>
+        </section>
+        <section>
+          <h3 className="text-sm font-medium mb-2">Innehåll</h3>
+          <ul className="text-sm space-y-1">
+            {(order.items ?? []).map((i: any, idx: number) => (
+              <li key={idx}>{i.quantity}× {i.name} {i.sku ? <span className="text-muted-foreground">({i.sku})</span> : null}</li>
+            ))}
+          </ul>
+        </section>
+      </div>
+
+      {!shipment && d?.id && (
+        <section className="space-y-3 pt-4 border-t">
+          <h3 className="text-sm font-medium">Fraktdetaljer (redigerbart)</h3>
+          <div className="grid sm:grid-cols-3 gap-3">
+            <div><Label>Service</Label>
+              <Input value={d.service_code ?? ""} onChange={(e) => setD({ ...d, service_code: e.target.value })} placeholder="17" /></div>
+            <div><Label>Antal kolli</Label>
+              <Input type="number" value={d.parcels ?? 1} onChange={(e) => setD({ ...d, parcels: +e.target.value })} /></div>
+            <div><Label>Vikt (kg)</Label>
+              <Input type="number" step="0.01" value={d.weight_kg ?? ""} onChange={(e) => setD({ ...d, weight_kg: +e.target.value })} /></div>
+            <div><Label>Längd (cm)</Label>
+              <Input type="number" value={d.length_cm ?? ""} onChange={(e) => setD({ ...d, length_cm: +e.target.value })} /></div>
+            <div><Label>Bredd (cm)</Label>
+              <Input type="number" value={d.width_cm ?? ""} onChange={(e) => setD({ ...d, width_cm: +e.target.value })} /></div>
+            <div><Label>Höjd (cm)</Label>
+              <Input type="number" value={d.height_cm ?? ""} onChange={(e) => setD({ ...d, height_cm: +e.target.value })} /></div>
+          </div>
+          <div>
+            <Label>Anteckning</Label>
+            <Input value={d.notes ?? ""} onChange={(e) => setD({ ...d, notes: e.target.value })} />
+          </div>
+          <Button variant="outline" onClick={saveDraft}>Spara utkast</Button>
+        </section>
+      )}
+
+      {shipment && (
+        <section className="pt-4 border-t text-sm space-y-1">
+          <div><span className="text-muted-foreground">Tracking:</span> <code>{shipment.tracking_no ?? "—"}</code></div>
+          <div><span className="text-muted-foreground">Status:</span> <Badge variant="secondary">{shipment.status}</Badge></div>
+          <div className="text-muted-foreground">Bokad: {new Date(shipment.booked_at).toLocaleString("sv-SE")}</div>
+        </section>
+      )}
+    </Card>
+  );
+}
