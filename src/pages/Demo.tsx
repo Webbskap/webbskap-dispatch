@@ -583,20 +583,18 @@ function Bar({ label, pct }: { label: string; pct: number }) {
 function DemoSettings({ defaultService, setDefaultService }: { defaultService: string; setDefaultService: (v: string) => void }) {
   return (
     <div className="space-y-6 max-w-3xl">
-      <Card className="p-6 space-y-4">
+      <Card className="p-6 space-y-3">
         <h2 className="text-lg font-semibold">1. Webbskap-koppling</h2>
+        <div className="flex items-center gap-2">
+          <Badge variant="secondary" className="bg-green-100 text-green-900 hover:bg-green-100">
+            <CheckCircle2 className="h-3.5 w-3.5 mr-1" /> Ansluten
+          </Badge>
+          <span className="text-sm text-muted-foreground">demo.webbskap.se</span>
+        </div>
         <p className="text-sm text-muted-foreground">
-          Inloggning sker automatiskt när kunden öppnar fliken från Webbskaps E-handelsverktyg —
-          ingen separat inloggning behövs.
+          Kopplingen sker automatiskt när du öppnar fliken från Webbskap. Ordrar, kundinformation
+          och statusuppdateringar synkas i bakgrunden — du behöver inte göra något här.
         </p>
-        <div className="space-y-1">
-          <Label>Webhook URL (klistra in hos Webbskap)</Label>
-          <Input readOnly value="https://din-portal.lovable.app/functions/v1/webhook-ingest/<tenant-id>" />
-        </div>
-        <div className="grid sm:grid-cols-2 gap-3">
-          <div><Label>Website API-key</Label><Input placeholder="ws_••••••••" /></div>
-          <div><Label>Webhook secret</Label><Input placeholder="••••••••" /></div>
-        </div>
       </Card>
 
       <Card className="p-6 space-y-4">
