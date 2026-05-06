@@ -90,9 +90,12 @@ export default function Index() {
     <div className="min-h-screen bg-background text-foreground">
       <header className="border-b">
         <div className="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between">
-          <div>
-            <h1 className="font-semibold">PostNord-portal</h1>
-            <p className="text-xs text-muted-foreground">{tenant.display_name ?? tenant.subdomain}</p>
+          <div className="flex items-center gap-3">
+            <div>
+              <h1 className="font-semibold">PostNord-portal</h1>
+              <p className="text-xs text-muted-foreground">{tenant.display_name ?? tenant.subdomain}</p>
+            </div>
+            <PlanBadge sub={subscription} onClick={() => setTab("settings")} />
           </div>
           <nav className="flex gap-1">
             <Button variant={tab === "orders" ? "default" : "ghost"} size="sm" onClick={() => setTab("orders")}>
