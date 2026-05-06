@@ -419,9 +419,36 @@ function DemoDetail({ order, labelFormat, defaultService, onBook, onReturn }:
 }
 
 function PickupView() {
-  const [date, setDate] = useState(new Date(Date.now() + 86400000).toISOString().slice(0, 10));
+  const tomorrow = new Date(Date.now() + 86400000);
+  const [date, setDate] = useState(tomorrow.toISOString().slice(0, 10));
+  const [time, setTime] = useState("15:00");
   const [parcels, setParcels] = useState(5);
   const [weight, setWeight] = useState(15);
+
+  // PostNords upphämtningsschema (förenklat – mån–fre dagtid, lör begränsat, sön stängt)
+  const dow = new Date(date).getDay(); // 0=sön, 6=lör
+  const schedule: Record<number, { open: boolean; from?: string; to?: string; label: string }> = {
+    0: { open: false, label: "Söndag — ingen upphämtning" },
+    1: { open: true, from: "08:00", to: "17:00", label: "Måndag 08–17" },
+    2: { open: true, from: "08:00", to: "17:00", label: "Tisdag 08–17" },
+    3: { open: true, from: "08:00", to: "17:00", label: "Onsdag 08–17" },
+    4: { open: true, from: "08:00", to: "17:00", label: "Torsdag 08–17" },
+    5: { open: true, from: "08:00", to: "17:00", label: "Fredag 08–17" },
+    6: { open: true, from: "09:00", to: "13:00", label: "Lördag 09–13 (begränsat)" },
+  };
+  const day = schedule[dow];
+  const inWindow = day.open && day.from! <= time && time <= day.to!;
+
+  // Generera valbara halvtimmar inom dagens fönster
+  const slots: string[] = [];
+  if (day.open) {
+    const [fh, fm] = day.from!.split(":").map(Number);
+    const [th, tm] = day.to!.split(":").map(Number);
+    for (let m = fh * 60 + fm; m <= th * 60 + tm; m += 30) {
+      slots.push(`${String(Math.floor(m / 60)).padStart(2, "0")}:${String(m % 60).padStart(2, "0")}`);
+    }
+  }
+
   return (
     <div className="grid lg:grid-cols-2 gap-4 max-w-4xl">
       <Card className="p-6 space-y-4">
@@ -431,19 +458,43 @@ function PickupView() {
         </div>
         <p className="text-sm text-muted-foreground">PostNord hämtar paketen direkt hos dig. Använder <code>/v3/pickups</code>.</p>
         <div className="rounded border bg-muted/40 p-3 text-xs text-muted-foreground">
-          <strong className="text-foreground">Upphämtningsadress:</strong> hämtas automatiskt från din avsändaradress under <em>Inställningar → PostNord-uppgifter</em>. Behöver du en annan adress en enskild gång — kontakta PostNord direkt.
+          <strong className="text-foreground">Upphämtningsadress:</strong> hämtas automatiskt från avsändaradressen under <em>Inställningar → PostNord-uppgifter</em>.
         </div>
         <div className="grid sm:grid-cols-2 gap-3">
           <div><Label>Datum</Label><Input type="date" value={date} onChange={(e) => setDate(e.target.value)} /></div>
-          <div><Label>Senast klart kl.</Label><Input type="time" defaultValue="15:00" /></div>
+          <div>
+            <Label>Tid (senast klart)</Label>
+            <Select value={time} onValueChange={setTime} disabled={!day.open}>
+              <SelectTrigger><SelectValue placeholder="Välj tid" /></SelectTrigger>
+              <SelectContent>
+                {slots.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}
+              </SelectContent>
+            </Select>
+          </div>
           <div><Label>Antal kolli</Label><Input type="number" value={parcels} onChange={(e) => setParcels(+e.target.value)} /></div>
           <div><Label>Total vikt (kg)</Label><Input type="number" value={weight} onChange={(e) => setWeight(+e.target.value)} /></div>
           <div className="sm:col-span-2"><Label>Plats / instruktion</Label><Input placeholder="Lastkaj, baksidan av byggnaden…" /></div>
         </div>
-        <Button onClick={() => alert("Demo: bokar upphämtning hos PostNord (/v3/pickups).")}>Boka upphämtning</Button>
+        <div className={`text-xs rounded p-2 ${day.open ? "bg-green-50 text-green-900 dark:bg-green-950/40 dark:text-green-100" : "bg-amber-50 text-amber-900 dark:bg-amber-950/40 dark:text-amber-100"}`}>
+          PostNords schema valt datum: <strong>{day.label}</strong>
+          {day.open && !inWindow && " — vald tid ligger utanför fönstret."}
+        </div>
+        <Button
+          disabled={!day.open || !inWindow}
+          onClick={() => alert("Demo: bokar upphämtning hos PostNord (/v3/pickups).")}
+        >
+          Boka upphämtning
+        </Button>
       </Card>
       <Card className="p-6 space-y-3">
-        <h3 className="text-sm font-medium">Senaste upphämtningar</h3>
+        <h3 className="text-sm font-medium">PostNords upphämtningsfönster</h3>
+        <ul className="text-xs space-y-1 text-muted-foreground">
+          <li>Mån–Fre: 08:00–17:00</li>
+          <li>Lördag: 09:00–13:00 (begränsat)</li>
+          <li>Söndag &amp; röda dagar: stängt</li>
+        </ul>
+        <div className="text-xs text-muted-foreground border-t pt-2">Faktiska tider kan variera per postnummer — bekräftas av PostNord vid bokning.</div>
+        <h3 className="text-sm font-medium pt-2">Senaste upphämtningar</h3>
         <ul className="text-sm space-y-1 text-muted-foreground">
           <li>• 2026-05-05 — 7 kolli ✅</li>
           <li>• 2026-05-04 — 4 kolli ✅</li>
