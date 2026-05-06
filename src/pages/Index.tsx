@@ -1,18 +1,22 @@
 import { useState } from "react";
+import { Link } from "react-router-dom";
 import { useAuthAndTenant } from "@/hooks/useAuthAndTenant";
+import { useSubscription } from "@/hooks/useSubscription";
 import { Onboarding } from "@/components/Onboarding";
 import { OrdersView } from "@/components/OrdersView";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { Lock } from "lucide-react";
 
 export default function Index() {
   const { session, tenant, loading, error } = useAuthAndTenant();
+  const { isActive, loading: subLoading } = useSubscription(session?.user?.id);
   const [tab, setTab] = useState<"orders" | "settings">("orders");
   const [devEmail, setDevEmail] = useState("");
 
-  if (loading) return <Centered>Laddar…</Centered>;
+  if (loading || subLoading) return <Centered>Laddar…</Centered>;
 
   if (!session) {
     return (
@@ -57,6 +61,26 @@ export default function Index() {
             Ditt konto har inte tilldelats någon Webbskap-sajt än. Öppna fliken via Webbskap för att aktivera.
           </p>
           <Button variant="outline" onClick={() => supabase.auth.signOut()}>Logga ut</Button>
+        </Card>
+      </Centered>
+    );
+  }
+
+  if (!isActive) {
+    return (
+      <Centered>
+        <Card className="p-8 max-w-md w-full text-center space-y-4">
+          <div className="mx-auto h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center">
+            <Lock className="h-5 w-5 text-primary" />
+          </div>
+          <h2 className="text-xl font-semibold">Aktivera PostNord-portalen</h2>
+          <p className="text-sm text-muted-foreground">
+            Din butik är kopplad, men prenumerationen är inte aktiv. Aktivera för 199 kr/mån för att börja boka frakt direkt från ordrarna.
+          </p>
+          <Link to="/checkout?plan=postnord_portal_monthly">
+            <Button className="w-full">Aktivera nu</Button>
+          </Link>
+          <Link to="/" className="block text-xs text-muted-foreground hover:underline">Läs mer om tjänsten</Link>
         </Card>
       </Centered>
     );
