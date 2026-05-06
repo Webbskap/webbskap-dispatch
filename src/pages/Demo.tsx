@@ -450,8 +450,26 @@ function StatsView({ orders }: { orders: DemoOrder[] }) {
           <Bar label="DPD Företagspaket (1)" pct={10} />
         </div>
       </Card>
-      <Card className="p-6 text-sm text-muted-foreground">
-        Exportera fraktrapport som CSV för bokföring · Snittvikt: 1,7 kg · Snittpris: 96 kr
+      <Card className="p-6 space-y-3">
+        <div className="flex items-start justify-between gap-4 flex-wrap">
+          <div>
+            <h3 className="text-sm font-medium">Fraktrapport</h3>
+            <p className="text-xs text-muted-foreground mt-1">
+              Snittvikt: 1,7 kg · Snittpris: 96 kr · Period: senaste 30 dagarna
+            </p>
+            <p className="text-xs text-muted-foreground mt-2 max-w-xl">
+              Priserna kommer direkt från PostNords prisuppgifter på varje bokad sändning, så summorna stämmer mot din PostNord-faktura och kan användas i bokföringen. Moms separeras per rad.
+            </p>
+          </div>
+          <div className="flex gap-2">
+            <Button variant="outline" size="sm" onClick={() => alert("Demo: laddar ner fraktrapport som PDF")}>
+              <FileText className="h-4 w-4 mr-1.5" /> Ladda ner PDF
+            </Button>
+            <Button variant="outline" size="sm" onClick={() => alert("Demo: laddar ner fraktrapport som CSV")}>
+              CSV
+            </Button>
+          </div>
+        </div>
       </Card>
     </div>
   );
