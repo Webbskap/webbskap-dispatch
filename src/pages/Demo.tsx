@@ -379,7 +379,7 @@ function DemoDetail({ order, labelFormat, defaultService, onBook, onReturn }:
                   {d.length_cm && <div><span className="text-muted-foreground">Mått:</span> {d.length_cm}×{d.width_cm}×{d.height_cm} cm</div>}
                   <div><span className="text-muted-foreground">Etikett:</span> {labelFormat.toUpperCase()}</div>
                 </div>
-                <div className="text-xs text-muted-foreground">Status och spårningsnummer skickas automatiskt tillbaka till ordern i Webbskap. Kunden får ett spårningsmail.</div>
+                <div className="text-xs text-muted-foreground">Status och spårningsnummer skickas automatiskt tillbaka till ordern i Webbskap (Webbskap mailar kunden).</div>
               </div>
             </AlertDialogDescription>
           </AlertDialogHeader>
