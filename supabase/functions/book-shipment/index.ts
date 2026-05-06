@@ -199,14 +199,23 @@ Deno.serve(async (req) => {
         .select("subdomain")
         .eq("id", draft.tenant_id)
         .single();
-      if (wbCfg?.website_api_key && tenant?.subdomain && order?.webbskap_order_id) {
+      const platformKey = Deno.env.get("WEBBSKAP_PLATFORM_KEY") ?? "";
+      const websiteKey = wbCfg?.website_api_key ?? "";
+      // Prefer platform key (works across all tenants); fall back to per-tenant website key.
+      const authHeaders: Record<string, string> = platformKey
+        ? { "X-Platform-Key": platformKey }
+        : websiteKey
+          ? { "Authorization": `Bearer ${websiteKey}` }
+          : {};
+      if (Object.keys(authHeaders).length && tenant?.subdomain && order?.webbskap_order_id) {
         await fetch(`https://${tenant.subdomain}.webbskap.se/api/site/orders/${order.webbskap_order_id}`, {
           method: "PATCH",
           headers: {
-            "Authorization": `Bearer ${wbCfg.website_api_key}`,
+            ...authHeaders,
             "Content-Type": "application/json",
             "User-Agent": "PostnordPortal/1.0",
           },
+
           body: JSON.stringify({
             status: "SHIPPED",
             fulfillment: {

@@ -33,7 +33,6 @@ function CopyField({ label, value }: { label: string; value: string }) {
 
 export function Onboarding({ tenant, userId }: { tenant: Tenant; userId?: string }) {
   const [wb, setWb] = useState({ website_api_key: "", webhook_secret: "" });
-  const [projectId, setProjectId] = useState("");
   const [pn, setPn] = useState({
     api_key: "", customer_number: "", default_service_code: "17",
     sender_name: "", sender_company: "", sender_address: "",
@@ -45,14 +44,12 @@ export function Onboarding({ tenant, userId }: { tenant: Tenant; userId?: string
 
   useEffect(() => {
     (async () => {
-      const [{ data: w }, { data: p }, { data: t }] = await Promise.all([
+      const [{ data: w }, { data: p }] = await Promise.all([
         supabase.from("tenant_webbskap_config").select("*").eq("tenant_id", tenant.id).maybeSingle(),
         supabase.from("tenant_postnord_config").select("*").eq("tenant_id", tenant.id).maybeSingle(),
-        supabase.from("tenants").select("project_id").eq("id", tenant.id).maybeSingle(),
       ]);
       if (w) setWb({ website_api_key: w.website_api_key ?? "", webhook_secret: w.webhook_secret ?? "" });
       if (p) setPn((prev) => ({ ...prev, ...p }));
-      if (t?.project_id) setProjectId(t.project_id);
     })();
     // eslint-disable-next-line
   }, [tenant.id]);
@@ -61,12 +58,8 @@ export function Onboarding({ tenant, userId }: { tenant: Tenant; userId?: string
     setSaving(true);
     const a = await supabase.from("tenant_webbskap_config").upsert({ tenant_id: tenant.id, ...wb });
     const b = await supabase.from("tenant_postnord_config").upsert({ tenant_id: tenant.id, ...pn });
-    let c: any = { error: null };
-    if (projectId) {
-      c = await supabase.from("tenants").update({ project_id: projectId }).eq("id", tenant.id);
-    }
     setSaving(false);
-    if (a.error || b.error || c.error) toast.error("Kunde inte spara");
+    if (a.error || b.error) toast.error("Kunde inte spara");
     else toast.success("Sparat");
   };
 
@@ -114,17 +107,6 @@ export function Onboarding({ tenant, userId }: { tenant: Tenant; userId?: string
             placeholder="Klistra in secret som Webbskap visade"
           />
         </div>
-        <div>
-          <Label>Webbskap Project-ID</Label>
-          <Input
-            value={projectId}
-            onChange={(e) => setProjectId(e.target.value)}
-            placeholder="Hittas i Webbskap-projektets inställningar"
-          />
-          <p className="text-xs text-muted-foreground mt-1">
-            Används för att verifiera att inkommande ordrar tillhör rätt projekt.
-          </p>
-        </div>
       </Card>
 
       {/* Avancerat */}
@@ -145,8 +127,11 @@ export function Onboarding({ tenant, userId }: { tenant: Tenant; userId?: string
               <Input
                 value={wb.website_api_key}
                 onChange={(e) => setWb({ ...wb, website_api_key: e.target.value })}
-                placeholder="Behövs för att skicka tracking tillbaka till Webbskap"
+                placeholder="Valfri – behövs bara om plattformsnyckel saknas"
               />
+              <p className="text-xs text-muted-foreground mt-1">
+                Vi använder en gemensam plattformsnyckel hos Webbskap automatiskt. Fyll bara i detta om du vill köra mot ditt eget API-konto.
+              </p>
             </div>
             <div>
               <Label>Default service code</Label>
