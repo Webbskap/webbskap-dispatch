@@ -103,10 +103,10 @@ export function BillingSection({ userId }: { userId: string }) {
           )}
 
           <div className="flex flex-wrap gap-2 pt-2">
-            {isActive && (
-              <Link to={`/checkout?plan=${otherPlan}`}>
-                <Button variant="outline" size="sm">{otherLabel}</Button>
-              </Link>
+            {isActive && !subscription.cancel_at_period_end && (
+              <Button variant="outline" size="sm" onClick={changePlan} disabled={busy}>
+                {otherLabel}
+              </Button>
             )}
             <Button size="sm" onClick={openPortal} disabled={busy}>
               {busy ? "Öppnar…" : "Hantera prenumeration"}
