@@ -542,32 +542,54 @@ function DemoSettings({ defaultService, setDefaultService }: { defaultService: s
       <Card className="p-6 space-y-4">
         <h2 className="text-lg font-semibold">3. Etikett & utskrift</h2>
         <div className="space-y-3">
-          <Row label="Etikettformat" sub="PDF för vanlig skrivare, ZPL för Zebra-termoskrivare">
-            <Select defaultValue="pdf">
-              <SelectTrigger className="w-40"><SelectValue /></SelectTrigger>
+          <Row label="Standardstorlek på fraktsedel" sub="Du kan alltid välja annan storlek per order">
+            <Select defaultValue="pdf-a4">
+              <SelectTrigger className="w-44"><SelectValue /></SelectTrigger>
               <SelectContent>
-                <SelectItem value="pdf">PDF (A4)</SelectItem>
-                <SelectItem value="pdf-a6">PDF (A6 / 4×6")</SelectItem>
-                <SelectItem value="zpl">ZPL 8 dpmm</SelectItem>
+                <SelectItem value="pdf-a4">PDF — A4</SelectItem>
+                <SelectItem value="pdf-a5">PDF — A5</SelectItem>
+                <SelectItem value="pdf-a6">PDF — A6 (4×6")</SelectItem>
+                <SelectItem value="zpl">ZPL — Zebra 8dpmm</SelectItem>
               </SelectContent>
             </Select>
           </Row>
-          <Row label="Skriv ut följesedel automatiskt" sub="Tillsammans med fraktsedeln">
-            <Switch defaultChecked />
-          </Row>
-          <Row label="Skicka spårningsmail till kund" sub="Vid bokning samt vid leverans">
-            <Switch defaultChecked />
-          </Row>
+          <div className="text-xs text-muted-foreground border-t pt-3">
+            Följesedel skrivs ut separat från orderkortet. Spårningsmail till kunden skickas automatiskt av Webbskap när status uppdateras — vi gör inget eget utskick.
+          </div>
         </div>
       </Card>
 
       <Card className="p-6 space-y-4">
         <h2 className="text-lg font-semibold">4. Standardpaket</h2>
-        <p className="text-sm text-muted-foreground">Förinställda mått så att personalen slipper mäta varje gång.</p>
+        <p className="text-sm text-muted-foreground">Förinställda mått så att personalen slipper mäta varje gång. Lägg till egna storlekar om du har ovanliga paket.</p>
         <div className="grid sm:grid-cols-3 gap-3 text-sm">
-          {["Litet (S) – 25×20×5", "Medium (M) – 35×25×15", "Stort (L) – 50×35×25"].map((p) => (
-            <div key={p} className="border rounded p-3"><strong>{p.split(" – ")[0]}</strong><div className="text-xs text-muted-foreground">{p.split(" – ")[1]} cm</div></div>
+          {[
+            { name: "Litet (S)", dims: "25×20×5" },
+            { name: "Medium (M)", dims: "35×25×15" },
+            { name: "Stort (L)", dims: "50×35×25" },
+          ].map((p) => (
+            <div key={p.name} className="border rounded p-3">
+              <strong>{p.name}</strong>
+              <div className="text-xs text-muted-foreground">{p.dims} cm</div>
+            </div>
           ))}
+        </div>
+
+        <div className="border-t pt-4 space-y-3">
+          <h3 className="text-sm font-medium">Egna standardmått</h3>
+          <p className="text-xs text-muted-foreground">Spara dina egna förinställningar — t.ex. en specialkartong du använder ofta.</p>
+          <div className="grid sm:grid-cols-5 gap-2">
+            <div className="sm:col-span-2"><Label className="text-xs">Namn</Label><Input placeholder="T.ex. Tröjkartong" /></div>
+            <div><Label className="text-xs">L (cm)</Label><Input type="number" placeholder="40" /></div>
+            <div><Label className="text-xs">B (cm)</Label><Input type="number" placeholder="30" /></div>
+            <div><Label className="text-xs">H (cm)</Label><Input type="number" placeholder="12" /></div>
+          </div>
+          <div className="flex items-center justify-between gap-2">
+            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+              <Switch /> Använd som standard på nya ordrar
+            </div>
+            <Button variant="outline" size="sm">Spara mått</Button>
+          </div>
         </div>
       </Card>
 
