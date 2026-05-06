@@ -26,3 +26,9 @@ verify_jwt = false
 
 [functions.change-plan]
 verify_jwt = false
+
+[functions.validate-customer-number]
+verify_jwt = false
+
+[functions.webbskap-site-info]
+verify_jwt = false
