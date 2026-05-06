@@ -138,7 +138,7 @@ Deno.serve(async (req) => {
     };
 
     // PostNord v3: apikey is a query parameter; paperSize controls PDF size.
-    const pnUrl = `${POSTNORD_BASE}/labels/pdf?apikey=${encodeURIComponent(pnCfg.api_key)}&paperSize=A4`;
+    const pnUrl = `${pnBase}/labels/pdf?apikey=${encodeURIComponent(apiKey)}&paperSize=A4`;
     const pnRes = await fetch(pnUrl, {
       method: "POST",
       headers: {
