@@ -43,6 +43,7 @@ export function Onboarding({ tenant, userId }: { tenant: Tenant; userId?: string
 
   return (
     <div className="space-y-6 max-w-3xl">
+      {userId && <BillingSection userId={userId} />}
       <Card className="p-6 space-y-4">
         <h2 className="text-lg font-semibold">1. Webbskap-koppling</h2>
         <p className="text-sm text-muted-foreground">
