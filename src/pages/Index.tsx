@@ -105,7 +105,7 @@ export default function Index() {
         </div>
       </header>
       <main className="max-w-6xl mx-auto px-4 py-6">
-        {tab === "orders" ? <OrdersView tenant={tenant} /> : <Onboarding tenant={tenant} />}
+        {tab === "orders" ? <OrdersView tenant={tenant} /> : <Onboarding tenant={tenant} userId={session.user.id} />}
       </main>
     </div>
   );
