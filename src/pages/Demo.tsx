@@ -110,11 +110,21 @@ export default function Demo() {
   const [orderTab, setOrderTab] = useState<"active" | "done">("active");
   const [defaultService, setDefaultService] = useState("17");
   const [labelFormat, setLabelFormat] = useState<"pdf-a4" | "pdf-a5" | "pdf-a6" | "zpl">("pdf-a4");
+  const [search, setSearch] = useState("");
 
   const sel = useMemo(() => orders.find((o) => o.id === selected) ?? null, [orders, selected]);
   const active = orders.filter((o) => o.shipment?.status !== "delivered");
   const done = orders.filter((o) => o.shipment?.status === "delivered");
-  const visible = orderTab === "active" ? active : done;
+  const base = orderTab === "active" ? active : done;
+  const q = search.trim().toLowerCase();
+  const visible = q
+    ? base.filter((o) =>
+        o.invoice_no.includes(q) ||
+        o.customer_name.toLowerCase().includes(q) ||
+        o.customer_email.toLowerCase().includes(q) ||
+        o.shipment?.tracking_no?.toLowerCase().includes(q),
+      )
+    : base;
 
   const handleBook = (id: string) => {
     setOrders((prev) => prev.map((p) => p.id === id ? {
