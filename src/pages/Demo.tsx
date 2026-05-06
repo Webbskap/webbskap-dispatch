@@ -314,6 +314,24 @@ function DemoDetail({ order, labelFormat, defaultService, onBook, onReturn }:
               </Select>
               <div className="text-xs text-muted-foreground mt-1">Standardtjänst: <code>{defaultService}</code> (ändras i Inställningar)</div>
             </div>
+            <div className="sm:col-span-2">
+              <Label>Förinställd storlek</Label>
+              <Select
+                value=""
+                onValueChange={(v) => {
+                  const p = PRESET_SIZES.find((p) => p.name === v);
+                  if (p) setD({ ...d, length_cm: p.l, width_cm: p.w, height_cm: p.h });
+                }}
+              >
+                <SelectTrigger><SelectValue placeholder="Välj storlek (S / M / L / egna)…" /></SelectTrigger>
+                <SelectContent>
+                  {PRESET_SIZES.map((p) => (
+                    <SelectItem key={p.name} value={p.name}>{p.name} — {p.l}×{p.w}×{p.h} cm</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <div className="text-xs text-muted-foreground mt-1">Hanteras under <em>Inställningar → Standardpaket</em>.</div>
+            </div>
             <div><Label>Antal kolli</Label><Input type="number" value={d.parcels} onChange={(e) => setD({ ...d, parcels: +e.target.value })} /></div>
             <div><Label>Vikt (kg)</Label><Input type="number" step="0.01" value={d.weight_kg} onChange={(e) => setD({ ...d, weight_kg: +e.target.value })} /></div>
             <div><Label>Längd (cm)</Label><Input type="number" value={d.length_cm ?? ""} onChange={(e) => setD({ ...d, length_cm: +e.target.value })} /></div>
