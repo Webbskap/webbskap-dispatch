@@ -102,7 +102,7 @@ export default function Demo() {
   const [selected, setSelected] = useState<string | null>(SAMPLE[0].id);
   const [orderTab, setOrderTab] = useState<"active" | "done">("active");
   const [defaultService, setDefaultService] = useState("17");
-  const [labelFormat, setLabelFormat] = useState<"pdf" | "zpl">("pdf");
+  const [labelFormat, setLabelFormat] = useState<"pdf-a4" | "pdf-a5" | "pdf-a6" | "zpl">("pdf-a4");
 
   const sel = useMemo(() => orders.find((o) => o.id === selected) ?? null, [orders, selected]);
   const active = orders.filter((o) => o.shipment?.status !== "delivered");
