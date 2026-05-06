@@ -4,10 +4,10 @@ import { useAuthAndTenant } from "@/hooks/useAuthAndTenant";
 import { useSubscription } from "@/hooks/useSubscription";
 import { Onboarding } from "@/components/Onboarding";
 import { OrdersView } from "@/components/OrdersView";
+import { AuthForm } from "@/components/AuthForm";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { supabase } from "@/integrations/supabase/client";
-import { toast } from "sonner";
 import { Lock } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 
@@ -31,57 +31,21 @@ export default function Index() {
   const { session, tenant, loading, error } = useAuthAndTenant();
   const { isActive, loading: subLoading, subscription } = useSubscription(session?.user?.id);
   const [tab, setTab] = useState<"orders" | "settings">("orders");
-  const [devEmail, setDevEmail] = useState("");
 
-  if (loading || subLoading) return <Centered>Laddar…</Centered>;
+  if (loading) return <Centered>Laddar…</Centered>;
 
   if (!session) {
     return (
       <Centered>
-        <Card className="p-6 max-w-md w-full space-y-4">
-          <h1 className="text-xl font-semibold">PostNord-portal</h1>
-          <p className="text-sm text-muted-foreground">
-            Den här fliken öppnas normalt automatiskt från Webbskap. För testning kan du logga in med e-post.
-          </p>
-          {error && <p className="text-sm text-destructive">{error}</p>}
-          <input
-            type="email"
-            placeholder="din@email.se"
-            className="w-full border rounded px-3 py-2 bg-background"
-            value={devEmail}
-            onChange={(e) => setDevEmail(e.target.value)}
-          />
-          <Button
-            className="w-full"
-            onClick={async () => {
-              const { error } = await supabase.auth.signInWithOtp({
-                email: devEmail,
-                options: { emailRedirectTo: window.location.origin },
-              });
-              if (error) toast.error(error.message);
-              else toast.success("Magisk länk skickad");
-            }}
-          >
-            Skicka magisk länk
-          </Button>
-        </Card>
+        <div className="w-full max-w-md space-y-3">
+          <AuthForm />
+          {error && <p className="text-sm text-destructive text-center">{error}</p>}
+        </div>
       </Centered>
     );
   }
 
-  if (!tenant) {
-    return (
-      <Centered>
-        <Card className="p-6 max-w-md text-sm space-y-3">
-          <h2 className="font-semibold">Ingen sajt kopplad</h2>
-          <p className="text-muted-foreground">
-            Ditt konto har inte tilldelats någon Webbskap-sajt än. Öppna fliken via Webbskap för att aktivera.
-          </p>
-          <Button variant="outline" onClick={() => supabase.auth.signOut()}>Logga ut</Button>
-        </Card>
-      </Centered>
-    );
-  }
+  if (subLoading || !tenant) return <Centered>Förbereder ditt konto…</Centered>;
 
   if (!isActive) {
     return (

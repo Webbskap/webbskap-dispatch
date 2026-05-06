@@ -1,6 +1,6 @@
 project_id = "olavdstyfkyoctgtssjk"
 
-[functions.iframe-auth]
+[functions.provision-tenant]
 verify_jwt = false
 
 [functions.webhook-ingest]
