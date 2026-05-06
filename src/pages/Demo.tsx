@@ -196,9 +196,18 @@ export default function Demo() {
 
             <div className="grid lg:grid-cols-[340px_1fr] gap-4">
               <Card className="p-2 max-h-[75vh] overflow-auto">
+                <div className="relative p-1 mb-1">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+                  <Input
+                    value={search}
+                    onChange={(e) => setSearch(e.target.value)}
+                    placeholder="Sök order, kund, e-post, tracking…"
+                    className="pl-8 h-9 text-sm"
+                  />
+                </div>
                 {visible.length === 0 && (
                   <div className="p-6 text-center text-sm text-muted-foreground">
-                    {orderTab === "active" ? "Inga aktiva ordrar." : "Inga klara ordrar än."}
+                    {q ? "Inga träffar." : orderTab === "active" ? "Inga aktiva ordrar." : "Inga klara ordrar än."}
                   </div>
                 )}
                 {visible.map((o) => (
