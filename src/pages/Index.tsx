@@ -12,7 +12,7 @@ import { Lock } from "lucide-react";
 
 export default function Index() {
   const { session, tenant, loading, error } = useAuthAndTenant();
-  const { isActive, loading: subLoading } = useSubscription(session?.user?.id);
+  const { isActive, loading: subLoading, subscription } = useSubscription(session?.user?.id);
   const [tab, setTab] = useState<"orders" | "settings">("orders");
   const [devEmail, setDevEmail] = useState("");
 
