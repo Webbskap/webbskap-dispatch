@@ -13,7 +13,7 @@ import {
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Package, Settings, CheckCircle2, Truck, MapPin, Inbox, RefreshCw,
-  Undo2, CalendarClock, BarChart3, FileText, Printer,
+  Undo2, CalendarClock, BarChart3, FileText, Printer, Search, AlertCircle, Sparkles,
 } from "lucide-react";
 
 // Standalone demo — hardcoded data, no backend, no Webbskap.
@@ -110,11 +110,21 @@ export default function Demo() {
   const [orderTab, setOrderTab] = useState<"active" | "done">("active");
   const [defaultService, setDefaultService] = useState("17");
   const [labelFormat, setLabelFormat] = useState<"pdf-a4" | "pdf-a5" | "pdf-a6" | "zpl">("pdf-a4");
+  const [search, setSearch] = useState("");
 
   const sel = useMemo(() => orders.find((o) => o.id === selected) ?? null, [orders, selected]);
   const active = orders.filter((o) => o.shipment?.status !== "delivered");
   const done = orders.filter((o) => o.shipment?.status === "delivered");
-  const visible = orderTab === "active" ? active : done;
+  const base = orderTab === "active" ? active : done;
+  const q = search.trim().toLowerCase();
+  const visible = q
+    ? base.filter((o) =>
+        o.invoice_no.includes(q) ||
+        o.customer_name.toLowerCase().includes(q) ||
+        o.customer_email.toLowerCase().includes(q) ||
+        o.shipment?.tracking_no?.toLowerCase().includes(q),
+      )
+    : base;
 
   const handleBook = (id: string) => {
     setOrders((prev) => prev.map((p) => p.id === id ? {
@@ -186,9 +196,18 @@ export default function Demo() {
 
             <div className="grid lg:grid-cols-[340px_1fr] gap-4">
               <Card className="p-2 max-h-[75vh] overflow-auto">
+                <div className="relative p-1 mb-1">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+                  <Input
+                    value={search}
+                    onChange={(e) => setSearch(e.target.value)}
+                    placeholder="Sök order, kund, e-post, tracking…"
+                    className="pl-8 h-9 text-sm"
+                  />
+                </div>
                 {visible.length === 0 && (
                   <div className="p-6 text-center text-sm text-muted-foreground">
-                    {orderTab === "active" ? "Inga aktiva ordrar." : "Inga klara ordrar än."}
+                    {q ? "Inga träffar." : orderTab === "active" ? "Inga aktiva ordrar." : "Inga klara ordrar än."}
                   </div>
                 )}
                 {visible.map((o) => (
@@ -580,9 +599,40 @@ function Bar({ label, pct }: { label: string; pct: number }) {
   );
 }
 
+function StatusRowDemo({ ok, label }: { ok: boolean; label: string }) {
+  return (
+    <div className="flex items-start gap-2">
+      {ok ? <CheckCircle2 className="h-4 w-4 mt-0.5 text-green-600 shrink-0" />
+          : <AlertCircle className="h-4 w-4 mt-0.5 text-muted-foreground shrink-0" />}
+      <span className={ok ? "" : "text-muted-foreground"}>{label}</span>
+    </div>
+  );
+}
+
 function DemoSettings({ defaultService, setDefaultService }: { defaultService: string; setDefaultService: (v: string) => void }) {
   return (
     <div className="space-y-6 max-w-3xl">
+      <Card className="p-6 space-y-3">
+        <div className="flex items-center justify-between">
+          <h2 className="text-lg font-semibold">Setup-status</h2>
+          <span className="text-xs px-2 py-1 rounded-full bg-green-100 text-green-700">Redo att boka</span>
+        </div>
+        <div className="space-y-1.5 text-sm">
+          <StatusRowDemo ok label="PostNord-kundnummer (validerat)" />
+          <StatusRowDemo ok label="Webbskap-koppling aktiv" />
+          <StatusRowDemo ok label="Avsändaradress ifylld" />
+          <StatusRowDemo ok label="Senaste event: orders/created (idag 09:42)" />
+        </div>
+        <div className="flex gap-2 pt-1">
+          <Button type="button" variant="outline" size="sm" onClick={() => alert("Demo: validerar kundnummer mot PostNord")}>
+            <CheckCircle2 className="h-4 w-4 mr-1.5" /> Validera kundnummer
+          </Button>
+          <Button type="button" variant="outline" size="sm" onClick={() => alert("Demo: hämtar avsändare från Webbskap")}>
+            <Sparkles className="h-4 w-4 mr-1.5" /> Hämta avsändare från Webbskap
+          </Button>
+        </div>
+      </Card>
+
       <Card className="p-6 space-y-3">
         <h2 className="text-lg font-semibold">1. Webbskap-koppling</h2>
         <div className="flex items-center gap-2">
