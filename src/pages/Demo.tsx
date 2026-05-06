@@ -102,7 +102,7 @@ export default function Demo() {
   const [selected, setSelected] = useState<string | null>(SAMPLE[0].id);
   const [orderTab, setOrderTab] = useState<"active" | "done">("active");
   const [defaultService, setDefaultService] = useState("17");
-  const [labelFormat, setLabelFormat] = useState<"pdf" | "zpl">("pdf");
+  const [labelFormat, setLabelFormat] = useState<"pdf-a4" | "pdf-a5" | "pdf-a6" | "zpl">("pdf-a4");
 
   const sel = useMemo(() => orders.find((o) => o.id === selected) ?? null, [orders, selected]);
   const active = orders.filter((o) => o.shipment?.status !== "delivered");
@@ -164,11 +164,16 @@ export default function Demo() {
                 </TabsList>
               </Tabs>
               <div className="flex items-center gap-2 text-xs">
-                <span className="text-muted-foreground">Etikettformat:</span>
-                <div className="flex rounded-md border overflow-hidden">
-                  <button onClick={() => setLabelFormat("pdf")} className={`px-3 py-1.5 ${labelFormat === "pdf" ? "bg-primary text-primary-foreground" : "bg-background"}`}>PDF (A4)</button>
-                  <button onClick={() => setLabelFormat("zpl")} className={`px-3 py-1.5 border-l ${labelFormat === "zpl" ? "bg-primary text-primary-foreground" : "bg-background"}`}>ZPL (Zebra)</button>
-                </div>
+                <span className="text-muted-foreground">Etikett:</span>
+                <Select value={labelFormat} onValueChange={(v) => setLabelFormat(v as any)}>
+                  <SelectTrigger className="h-8 w-44 text-xs"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="pdf-a4">PDF — A4</SelectItem>
+                    <SelectItem value="pdf-a5">PDF — A5</SelectItem>
+                    <SelectItem value="pdf-a6">PDF — A6 (4×6")</SelectItem>
+                    <SelectItem value="zpl">ZPL — Zebra 8dpmm</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
             </div>
 
@@ -232,7 +237,7 @@ function StatusBadge({ order }: { order: DemoOrder }) {
 }
 
 function DemoDetail({ order, labelFormat, defaultService, onBook, onReturn }:
-  { order: DemoOrder; labelFormat: "pdf" | "zpl"; defaultService: string; onBook: () => void; onReturn: () => void }) {
+  { order: DemoOrder; labelFormat: string; defaultService: string; onBook: () => void; onReturn: () => void }) {
   const [d, setD] = useState({ ...order.draft, service_code: order.draft.service_code || defaultService });
   const [confirmOpen, setConfirmOpen] = useState(false);
   const ship = order.shipping_address;
@@ -374,7 +379,7 @@ function DemoDetail({ order, labelFormat, defaultService, onBook, onReturn }:
                   {d.length_cm && <div><span className="text-muted-foreground">Mått:</span> {d.length_cm}×{d.width_cm}×{d.height_cm} cm</div>}
                   <div><span className="text-muted-foreground">Etikett:</span> {labelFormat.toUpperCase()}</div>
                 </div>
-                <div className="text-xs text-muted-foreground">Status och spårningsnummer skickas automatiskt tillbaka till ordern i Webbskap. Kunden får ett spårningsmail.</div>
+                <div className="text-xs text-muted-foreground">Status och spårningsnummer skickas automatiskt tillbaka till ordern i Webbskap (Webbskap mailar kunden).</div>
               </div>
             </AlertDialogDescription>
           </AlertDialogHeader>
@@ -400,6 +405,9 @@ function PickupView() {
           <h2 className="text-lg font-semibold">Boka upphämtning</h2>
         </div>
         <p className="text-sm text-muted-foreground">PostNord hämtar paketen direkt hos dig. Använder <code>/v3/pickups</code>.</p>
+        <div className="rounded border bg-muted/40 p-3 text-xs text-muted-foreground">
+          <strong className="text-foreground">Upphämtningsadress:</strong> hämtas automatiskt från din avsändaradress under <em>Inställningar → PostNord-uppgifter</em>. Behöver du en annan adress en enskild gång — kontakta PostNord direkt.
+        </div>
         <div className="grid sm:grid-cols-2 gap-3">
           <div><Label>Datum</Label><Input type="date" value={date} onChange={(e) => setDate(e.target.value)} /></div>
           <div><Label>Senast klart kl.</Label><Input type="time" defaultValue="15:00" /></div>
@@ -410,19 +418,12 @@ function PickupView() {
         <Button onClick={() => alert("Demo: bokar upphämtning hos PostNord (/v3/pickups).")}>Boka upphämtning</Button>
       </Card>
       <Card className="p-6 space-y-3">
-        <h3 className="text-sm font-medium">Stående schema</h3>
-        <p className="text-sm text-muted-foreground">Sätt en återkommande upphämtning så slipper du boka varje dag.</p>
-        <div className="flex items-center gap-3">
-          <Switch /> <span className="text-sm">Mån–Fre kl. 15:00</span>
-        </div>
-        <div className="text-xs text-muted-foreground border-t pt-3">
-          Senaste upphämtningar:
-          <ul className="mt-2 space-y-1">
-            <li>• 2026-05-05 — 7 kolli ✅</li>
-            <li>• 2026-05-04 — 4 kolli ✅</li>
-            <li>• 2026-05-03 — 9 kolli ✅</li>
-          </ul>
-        </div>
+        <h3 className="text-sm font-medium">Senaste upphämtningar</h3>
+        <ul className="text-sm space-y-1 text-muted-foreground">
+          <li>• 2026-05-05 — 7 kolli ✅</li>
+          <li>• 2026-05-04 — 4 kolli ✅</li>
+          <li>• 2026-05-03 — 9 kolli ✅</li>
+        </ul>
       </Card>
     </div>
   );
@@ -449,8 +450,26 @@ function StatsView({ orders }: { orders: DemoOrder[] }) {
           <Bar label="DPD Företagspaket (1)" pct={10} />
         </div>
       </Card>
-      <Card className="p-6 text-sm text-muted-foreground">
-        Exportera fraktrapport som CSV för bokföring · Snittvikt: 1,7 kg · Snittpris: 96 kr
+      <Card className="p-6 space-y-3">
+        <div className="flex items-start justify-between gap-4 flex-wrap">
+          <div>
+            <h3 className="text-sm font-medium">Fraktrapport</h3>
+            <p className="text-xs text-muted-foreground mt-1">
+              Snittvikt: 1,7 kg · Snittpris: 96 kr · Period: senaste 30 dagarna
+            </p>
+            <p className="text-xs text-muted-foreground mt-2 max-w-xl">
+              Priserna kommer direkt från PostNords prisuppgifter på varje bokad sändning, så summorna stämmer mot din PostNord-faktura och kan användas i bokföringen. Moms separeras per rad.
+            </p>
+          </div>
+          <div className="flex gap-2">
+            <Button variant="outline" size="sm" onClick={() => alert("Demo: laddar ner fraktrapport som PDF")}>
+              <FileText className="h-4 w-4 mr-1.5" /> Ladda ner PDF
+            </Button>
+            <Button variant="outline" size="sm" onClick={() => alert("Demo: laddar ner fraktrapport som CSV")}>
+              CSV
+            </Button>
+          </div>
+        </div>
       </Card>
     </div>
   );
@@ -523,32 +542,54 @@ function DemoSettings({ defaultService, setDefaultService }: { defaultService: s
       <Card className="p-6 space-y-4">
         <h2 className="text-lg font-semibold">3. Etikett & utskrift</h2>
         <div className="space-y-3">
-          <Row label="Etikettformat" sub="PDF för vanlig skrivare, ZPL för Zebra-termoskrivare">
-            <Select defaultValue="pdf">
-              <SelectTrigger className="w-40"><SelectValue /></SelectTrigger>
+          <Row label="Standardstorlek på fraktsedel" sub="Du kan alltid välja annan storlek per order">
+            <Select defaultValue="pdf-a4">
+              <SelectTrigger className="w-44"><SelectValue /></SelectTrigger>
               <SelectContent>
-                <SelectItem value="pdf">PDF (A4)</SelectItem>
-                <SelectItem value="pdf-a6">PDF (A6 / 4×6")</SelectItem>
-                <SelectItem value="zpl">ZPL 8 dpmm</SelectItem>
+                <SelectItem value="pdf-a4">PDF — A4</SelectItem>
+                <SelectItem value="pdf-a5">PDF — A5</SelectItem>
+                <SelectItem value="pdf-a6">PDF — A6 (4×6")</SelectItem>
+                <SelectItem value="zpl">ZPL — Zebra 8dpmm</SelectItem>
               </SelectContent>
             </Select>
           </Row>
-          <Row label="Skriv ut följesedel automatiskt" sub="Tillsammans med fraktsedeln">
-            <Switch defaultChecked />
-          </Row>
-          <Row label="Skicka spårningsmail till kund" sub="Vid bokning samt vid leverans">
-            <Switch defaultChecked />
-          </Row>
+          <div className="text-xs text-muted-foreground border-t pt-3">
+            Följesedel skrivs ut separat från orderkortet. Spårningsmail till kunden skickas automatiskt av Webbskap när status uppdateras — vi gör inget eget utskick.
+          </div>
         </div>
       </Card>
 
       <Card className="p-6 space-y-4">
         <h2 className="text-lg font-semibold">4. Standardpaket</h2>
-        <p className="text-sm text-muted-foreground">Förinställda mått så att personalen slipper mäta varje gång.</p>
+        <p className="text-sm text-muted-foreground">Förinställda mått så att personalen slipper mäta varje gång. Lägg till egna storlekar om du har ovanliga paket.</p>
         <div className="grid sm:grid-cols-3 gap-3 text-sm">
-          {["Litet (S) – 25×20×5", "Medium (M) – 35×25×15", "Stort (L) – 50×35×25"].map((p) => (
-            <div key={p} className="border rounded p-3"><strong>{p.split(" – ")[0]}</strong><div className="text-xs text-muted-foreground">{p.split(" – ")[1]} cm</div></div>
+          {[
+            { name: "Litet (S)", dims: "25×20×5" },
+            { name: "Medium (M)", dims: "35×25×15" },
+            { name: "Stort (L)", dims: "50×35×25" },
+          ].map((p) => (
+            <div key={p.name} className="border rounded p-3">
+              <strong>{p.name}</strong>
+              <div className="text-xs text-muted-foreground">{p.dims} cm</div>
+            </div>
           ))}
+        </div>
+
+        <div className="border-t pt-4 space-y-3">
+          <h3 className="text-sm font-medium">Egna standardmått</h3>
+          <p className="text-xs text-muted-foreground">Spara dina egna förinställningar — t.ex. en specialkartong du använder ofta.</p>
+          <div className="grid sm:grid-cols-5 gap-2">
+            <div className="sm:col-span-2"><Label className="text-xs">Namn</Label><Input placeholder="T.ex. Tröjkartong" /></div>
+            <div><Label className="text-xs">L (cm)</Label><Input type="number" placeholder="40" /></div>
+            <div><Label className="text-xs">B (cm)</Label><Input type="number" placeholder="30" /></div>
+            <div><Label className="text-xs">H (cm)</Label><Input type="number" placeholder="12" /></div>
+          </div>
+          <div className="flex items-center justify-between gap-2">
+            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+              <Switch /> Använd som standard på nya ordrar
+            </div>
+            <Button variant="outline" size="sm">Spara mått</Button>
+          </div>
         </div>
       </Card>
 
