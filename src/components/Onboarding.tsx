@@ -33,7 +33,6 @@ function CopyField({ label, value }: { label: string; value: string }) {
 
 export function Onboarding({ tenant, userId }: { tenant: Tenant; userId?: string }) {
   const [wb, setWb] = useState({ website_api_key: "", webhook_secret: "" });
-  const [projectId, setProjectId] = useState("");
   const [pn, setPn] = useState({
     api_key: "", customer_number: "", default_service_code: "17",
     sender_name: "", sender_company: "", sender_address: "",
