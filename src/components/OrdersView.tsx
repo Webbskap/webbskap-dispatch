@@ -218,14 +218,21 @@ function OrderDetail({ order, draft, shipment, onChanged }: any) {
 
   const printPackingSlip = () => {
     const items = (order.items ?? []) as any[];
-    const html = `<!doctype html><html><head><meta charset="utf-8"><title>Följesedel ${order.invoice_no ?? ""}</title>
+    const e = (s: unknown) =>
+      String(s ?? "")
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#39;");
+    const html = `<!doctype html><html><head><meta charset="utf-8"><title>Följesedel ${e(order.invoice_no ?? "")}</title>
     <style>body{font-family:system-ui;padding:24px;color:#111}h1{margin:0 0 4px}table{width:100%;border-collapse:collapse;margin-top:16px}th,td{text-align:left;padding:8px;border-bottom:1px solid #ddd}</style></head><body>
     <h1>Följesedel</h1>
-    <div>Order #${order.invoice_no ?? order.webbskap_order_id}</div>
+    <div>Order #${e(order.invoice_no ?? order.webbskap_order_id)}</div>
     <h3 style="margin-top:24px">Levereras till</h3>
-    <div>${ship.name ?? order.customer_name ?? ""}<br>${ship.address ?? ""}<br>${ship.zipCode ?? ""} ${ship.city ?? ""}<br>${ship.country ?? ""}</div>
+    <div>${e(ship.name ?? order.customer_name ?? "")}<br>${e(ship.address ?? "")}<br>${e(ship.zipCode ?? "")} ${e(ship.city ?? "")}<br>${e(ship.country ?? "")}</div>
     <table><thead><tr><th>Produkt</th><th>SKU</th><th>Antal</th></tr></thead><tbody>
-    ${items.map((i) => `<tr><td>${i.name ?? ""}</td><td>${i.sku ?? ""}</td><td>${i.quantity ?? ""}</td></tr>`).join("")}
+    ${items.map((i) => `<tr><td>${e(i.name ?? "")}</td><td>${e(i.sku ?? "")}</td><td>${e(i.quantity ?? "")}</td></tr>`).join("")}
     </tbody></table>
     <script>window.print()</script></body></html>`;
     const w = window.open("", "_blank");
