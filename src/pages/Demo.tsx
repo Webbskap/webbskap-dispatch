@@ -405,6 +405,9 @@ function PickupView() {
           <h2 className="text-lg font-semibold">Boka upphämtning</h2>
         </div>
         <p className="text-sm text-muted-foreground">PostNord hämtar paketen direkt hos dig. Använder <code>/v3/pickups</code>.</p>
+        <div className="rounded border bg-muted/40 p-3 text-xs text-muted-foreground">
+          <strong className="text-foreground">Upphämtningsadress:</strong> hämtas automatiskt från din avsändaradress under <em>Inställningar → PostNord-uppgifter</em>. Behöver du en annan adress en enskild gång — kontakta PostNord direkt.
+        </div>
         <div className="grid sm:grid-cols-2 gap-3">
           <div><Label>Datum</Label><Input type="date" value={date} onChange={(e) => setDate(e.target.value)} /></div>
           <div><Label>Senast klart kl.</Label><Input type="time" defaultValue="15:00" /></div>
@@ -415,19 +418,12 @@ function PickupView() {
         <Button onClick={() => alert("Demo: bokar upphämtning hos PostNord (/v3/pickups).")}>Boka upphämtning</Button>
       </Card>
       <Card className="p-6 space-y-3">
-        <h3 className="text-sm font-medium">Stående schema</h3>
-        <p className="text-sm text-muted-foreground">Sätt en återkommande upphämtning så slipper du boka varje dag.</p>
-        <div className="flex items-center gap-3">
-          <Switch /> <span className="text-sm">Mån–Fre kl. 15:00</span>
-        </div>
-        <div className="text-xs text-muted-foreground border-t pt-3">
-          Senaste upphämtningar:
-          <ul className="mt-2 space-y-1">
-            <li>• 2026-05-05 — 7 kolli ✅</li>
-            <li>• 2026-05-04 — 4 kolli ✅</li>
-            <li>• 2026-05-03 — 9 kolli ✅</li>
-          </ul>
-        </div>
+        <h3 className="text-sm font-medium">Senaste upphämtningar</h3>
+        <ul className="text-sm space-y-1 text-muted-foreground">
+          <li>• 2026-05-05 — 7 kolli ✅</li>
+          <li>• 2026-05-04 — 4 kolli ✅</li>
+          <li>• 2026-05-03 — 9 kolli ✅</li>
+        </ul>
       </Card>
     </div>
   );
