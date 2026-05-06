@@ -129,7 +129,7 @@ export function Onboarding({ tenant, userId }: { tenant: Tenant; userId?: string
     toast.success("Avsändare ifylld från Webbskap");
   };
 
-  const webhookUrl = `https://olavdstyfkyoctgtssjk.supabase.co/functions/v1/webhook-ingest/${tenant.id}`;
+  const webhookUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/webhook-ingest/${tenant.id}`;
 
   const ready = {
     postnord: !!(pn.api_key && pn.customer_number),
