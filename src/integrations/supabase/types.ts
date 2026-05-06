@@ -244,6 +244,7 @@ export type Database = {
           api_key: string | null
           customer_number: string | null
           default_service_code: string | null
+          environment: string
           sender_address: string | null
           sender_city: string | null
           sender_company: string | null
@@ -259,6 +260,7 @@ export type Database = {
           api_key?: string | null
           customer_number?: string | null
           default_service_code?: string | null
+          environment?: string
           sender_address?: string | null
           sender_city?: string | null
           sender_company?: string | null
@@ -274,6 +276,7 @@ export type Database = {
           api_key?: string | null
           customer_number?: string | null
           default_service_code?: string | null
+          environment?: string
           sender_address?: string | null
           sender_city?: string | null
           sender_company?: string | null
