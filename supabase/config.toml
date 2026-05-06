@@ -23,3 +23,6 @@ verify_jwt = false
 
 [functions.create-portal-session]
 verify_jwt = false
+
+[functions.change-plan]
+verify_jwt = false

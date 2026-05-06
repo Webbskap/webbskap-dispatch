@@ -6,8 +6,9 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
+import { BillingSection } from "@/components/BillingSection";
 
-export function Onboarding({ tenant }: { tenant: Tenant }) {
+export function Onboarding({ tenant, userId }: { tenant: Tenant; userId?: string }) {
   const [wb, setWb] = useState({ website_api_key: "", webhook_secret: "" });
   const [pn, setPn] = useState({
     api_key: "", customer_number: "", default_service_code: "17",
@@ -42,6 +43,7 @@ export function Onboarding({ tenant }: { tenant: Tenant }) {
 
   return (
     <div className="space-y-6 max-w-3xl">
+      {userId && <BillingSection userId={userId} />}
       <Card className="p-6 space-y-4">
         <h2 className="text-lg font-semibold">1. Webbskap-koppling</h2>
         <p className="text-sm text-muted-foreground">

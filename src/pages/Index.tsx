@@ -9,10 +9,27 @@ import { Card } from "@/components/ui/card";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Lock } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+
+function PlanBadge({ sub, onClick }: { sub: any; onClick: () => void }) {
+  if (!sub) return null;
+  const isYear = sub.price_id === "postnord_portal_yearly";
+  const label = sub.cancel_at_period_end
+    ? "Uppsagd"
+    : sub.status === "past_due"
+    ? "Försenad betalning"
+    : isYear ? "Årsplan" : "Månadsplan";
+  const variant = sub.status === "past_due" ? "destructive" : sub.cancel_at_period_end ? "outline" : "secondary";
+  return (
+    <button onClick={onClick} className="hidden sm:inline-flex" title="Hantera prenumeration">
+      <Badge variant={variant as any}>{label}</Badge>
+    </button>
+  );
+}
 
 export default function Index() {
   const { session, tenant, loading, error } = useAuthAndTenant();
-  const { isActive, loading: subLoading } = useSubscription(session?.user?.id);
+  const { isActive, loading: subLoading, subscription } = useSubscription(session?.user?.id);
   const [tab, setTab] = useState<"orders" | "settings">("orders");
   const [devEmail, setDevEmail] = useState("");
 
@@ -90,9 +107,12 @@ export default function Index() {
     <div className="min-h-screen bg-background text-foreground">
       <header className="border-b">
         <div className="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between">
-          <div>
-            <h1 className="font-semibold">PostNord-portal</h1>
-            <p className="text-xs text-muted-foreground">{tenant.display_name ?? tenant.subdomain}</p>
+          <div className="flex items-center gap-3">
+            <div>
+              <h1 className="font-semibold">PostNord-portal</h1>
+              <p className="text-xs text-muted-foreground">{tenant.display_name ?? tenant.subdomain}</p>
+            </div>
+            <PlanBadge sub={subscription} onClick={() => setTab("settings")} />
           </div>
           <nav className="flex gap-1">
             <Button variant={tab === "orders" ? "default" : "ghost"} size="sm" onClick={() => setTab("orders")}>
@@ -105,7 +125,7 @@ export default function Index() {
         </div>
       </header>
       <main className="max-w-6xl mx-auto px-4 py-6">
-        {tab === "orders" ? <OrdersView tenant={tenant} /> : <Onboarding tenant={tenant} />}
+        {tab === "orders" ? <OrdersView tenant={tenant} /> : <Onboarding tenant={tenant} userId={session.user.id} />}
       </main>
     </div>
   );
