@@ -513,9 +513,23 @@ function DemoSettings({ defaultService, setDefaultService }: { defaultService: s
 
       <Card className="p-6 space-y-4">
         <h2 className="text-lg font-semibold">2. PostNord-uppgifter</h2>
+        <div className="rounded border bg-muted/40 p-3 text-xs text-muted-foreground">
+          <strong className="text-foreground">Partner-integration:</strong> Du behöver bara fylla i ditt PostNord-kundnummer.
+          API-nyckeln hanteras av oss centralt — ingen egen nyckel behövs.
+        </div>
         <div className="grid sm:grid-cols-2 gap-3">
-          <div><Label>API-nyckel</Label><Input placeholder="pn_••••••••" /></div>
-          <div><Label>Kundnummer</Label><Input placeholder="1234567" /></div>
+          <div>
+            <Label>Miljö</Label>
+            <Select defaultValue="sandbox">
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="sandbox">Sandbox (test)</SelectItem>
+                <SelectItem value="live">Live (skarp bokning)</SelectItem>
+              </SelectContent>
+            </Select>
+            <div className="text-xs text-muted-foreground mt-1">Börja i Sandbox tills allt fungerar.</div>
+          </div>
+          <div><Label>Kundnummer hos PostNord</Label><Input placeholder="1234567" /></div>
           <div className="sm:col-span-2">
             <Label>Standardtjänst</Label>
             <Select value={defaultService} onValueChange={setDefaultService}>
