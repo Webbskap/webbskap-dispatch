@@ -164,11 +164,16 @@ export default function Demo() {
                 </TabsList>
               </Tabs>
               <div className="flex items-center gap-2 text-xs">
-                <span className="text-muted-foreground">Etikettformat:</span>
-                <div className="flex rounded-md border overflow-hidden">
-                  <button onClick={() => setLabelFormat("pdf")} className={`px-3 py-1.5 ${labelFormat === "pdf" ? "bg-primary text-primary-foreground" : "bg-background"}`}>PDF (A4)</button>
-                  <button onClick={() => setLabelFormat("zpl")} className={`px-3 py-1.5 border-l ${labelFormat === "zpl" ? "bg-primary text-primary-foreground" : "bg-background"}`}>ZPL (Zebra)</button>
-                </div>
+                <span className="text-muted-foreground">Etikett:</span>
+                <Select value={labelFormat} onValueChange={(v) => setLabelFormat(v as any)}>
+                  <SelectTrigger className="h-8 w-44 text-xs"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="pdf-a4">PDF — A4</SelectItem>
+                    <SelectItem value="pdf-a5">PDF — A5</SelectItem>
+                    <SelectItem value="pdf-a6">PDF — A6 (4×6")</SelectItem>
+                    <SelectItem value="zpl">ZPL — Zebra 8dpmm</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
             </div>
 
