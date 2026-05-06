@@ -66,6 +66,26 @@ export default function Index() {
     );
   }
 
+  if (!isActive) {
+    return (
+      <Centered>
+        <Card className="p-8 max-w-md w-full text-center space-y-4">
+          <div className="mx-auto h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center">
+            <Lock className="h-5 w-5 text-primary" />
+          </div>
+          <h2 className="text-xl font-semibold">Aktivera PostNord-portalen</h2>
+          <p className="text-sm text-muted-foreground">
+            Din butik är kopplad, men prenumerationen är inte aktiv. Aktivera för 199 kr/mån för att börja boka frakt direkt från ordrarna.
+          </p>
+          <Link to="/checkout?plan=postnord_portal_monthly">
+            <Button className="w-full">Aktivera nu</Button>
+          </Link>
+          <Link to="/" className="block text-xs text-muted-foreground hover:underline">Läs mer om tjänsten</Link>
+        </Card>
+      </Centered>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-background text-foreground">
       <header className="border-b">
