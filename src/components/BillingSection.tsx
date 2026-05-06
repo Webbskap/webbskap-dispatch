@@ -47,6 +47,22 @@ export function BillingSection({ userId }: { userId: string }) {
     }
   };
 
+  const changePlan = async () => {
+    if (!confirm(`Vill du byta till ${otherLabel.replace("Byt till ", "")}? Mellanskillnaden proportioneras automatiskt.`)) return;
+    setBusy(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("change-plan", {
+        body: { newPriceId: otherPlan, environment: getStripeEnvironment() },
+      });
+      if (error || data?.error) throw new Error(error?.message || data?.error || "Kunde inte byta plan");
+      toast.success("Plan uppdaterad");
+    } catch (e: any) {
+      toast.error(e.message);
+    } finally {
+      setBusy(false);
+    }
+  };
+
   return (
     <Card className="p-6 space-y-4">
       <div className="flex items-start justify-between gap-4 flex-wrap">
