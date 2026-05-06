@@ -9,6 +9,23 @@ import { Card } from "@/components/ui/card";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Lock } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+
+function PlanBadge({ sub, onClick }: { sub: any; onClick: () => void }) {
+  if (!sub) return null;
+  const isYear = sub.price_id === "postnord_portal_yearly";
+  const label = sub.cancel_at_period_end
+    ? "Uppsagd"
+    : sub.status === "past_due"
+    ? "Försenad betalning"
+    : isYear ? "Årsplan" : "Månadsplan";
+  const variant = sub.status === "past_due" ? "destructive" : sub.cancel_at_period_end ? "outline" : "secondary";
+  return (
+    <button onClick={onClick} className="hidden sm:inline-flex" title="Hantera prenumeration">
+      <Badge variant={variant as any}>{label}</Badge>
+    </button>
+  );
+}
 
 export default function Index() {
   const { session, tenant, loading, error } = useAuthAndTenant();
