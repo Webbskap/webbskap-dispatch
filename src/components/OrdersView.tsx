@@ -7,10 +7,13 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
+import { RefreshCw, Search, Package, Inbox, ExternalLink } from "lucide-react";
 
 type Order = any;
 type Draft = any;
 type Shipment = any;
+
+type Filter = "all" | "unbooked" | "booked" | "shipped";
 
 export function OrdersView({ tenant }: { tenant: Tenant }) {
   const [orders, setOrders] = useState<Order[]>([]);
@@ -18,10 +21,14 @@ export function OrdersView({ tenant }: { tenant: Tenant }) {
   const [shipments, setShipments] = useState<Record<string, Shipment>>({});
   const [selected, setSelected] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [search, setSearch] = useState("");
+  const [filter, setFilter] = useState<Filter>("all");
 
   const refresh = async () => {
+    setRefreshing(true);
     const [{ data: o }, { data: d }, { data: s }] = await Promise.all([
-      supabase.from("orders").select("*").eq("tenant_id", tenant.id).order("created_at", { ascending: false }).limit(100),
+      supabase.from("orders").select("*").eq("tenant_id", tenant.id).order("created_at", { ascending: false }).limit(200),
       supabase.from("shipment_drafts").select("*").eq("tenant_id", tenant.id),
       supabase.from("shipments").select("*").eq("tenant_id", tenant.id),
     ]);
@@ -29,6 +36,7 @@ export function OrdersView({ tenant }: { tenant: Tenant }) {
     setDrafts(Object.fromEntries((d ?? []).map((r) => [r.order_id, r])));
     setShipments(Object.fromEntries((s ?? []).map((r) => [r.order_id, r])));
     setLoading(false);
+    setRefreshing(false);
   };
 
   useEffect(() => {
@@ -42,58 +50,127 @@ export function OrdersView({ tenant }: { tenant: Tenant }) {
     // eslint-disable-next-line
   }, [tenant.id]);
 
+  const counts = useMemo(() => {
+    let unbooked = 0, booked = 0, shipped = 0;
+    for (const o of orders) {
+      const sh = shipments[o.id];
+      if (!sh) unbooked++;
+      else if (sh.status === "delivered" || sh.status === "shipped") shipped++;
+      else booked++;
+    }
+    return { all: orders.length, unbooked, booked, shipped };
+  }, [orders, shipments]);
+
+  const filtered = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    return orders.filter((o) => {
+      const sh = shipments[o.id];
+      if (filter === "unbooked" && sh) return false;
+      if (filter === "booked" && (!sh || sh.status === "delivered" || sh.status === "shipped")) return false;
+      if (filter === "shipped" && (!sh || (sh.status !== "delivered" && sh.status !== "shipped"))) return false;
+      if (!q) return true;
+      const hay = `${o.invoice_no ?? ""} ${o.webbskap_order_id ?? ""} ${o.customer_name ?? ""} ${o.customer_email ?? ""} ${sh?.tracking_no ?? ""}`.toLowerCase();
+      return hay.includes(q);
+    });
+  }, [orders, shipments, filter, search]);
+
   const sel = orders.find((o) => o.id === selected) ?? null;
 
   if (loading) return <div className="text-muted-foreground">Laddar ordrar…</div>;
 
   return (
-    <div className="grid lg:grid-cols-[380px_1fr] gap-4">
-      <Card className="p-2 max-h-[75vh] overflow-auto">
-        {orders.length === 0 && (
-          <div className="p-4 text-sm text-muted-foreground">
-            Inga ordrar än. När en kund handlar i Webbskap-sajten kommer ordern hit.
-          </div>
-        )}
-        {orders.map((o) => {
-          const sh = shipments[o.id];
-          return (
-            <button
-              key={o.id}
-              onClick={() => setSelected(o.id)}
-              className={`w-full text-left p-3 rounded hover:bg-muted ${selected === o.id ? "bg-muted" : ""}`}
-            >
-              <div className="flex items-center justify-between">
-                <div className="font-medium">#{o.invoice_no ?? o.webbskap_order_id}</div>
-                {sh
-                  ? <Badge variant="secondary">{sh.status}</Badge>
-                  : <Badge>{o.status}</Badge>}
-              </div>
-              <div className="text-sm text-muted-foreground truncate">{o.customer_name}</div>
-              <div className="text-xs text-muted-foreground">
-                {o.total} {o.currency ?? ""} · {o.weight ?? "?"} {o.weight_unit}
-              </div>
-            </button>
-          );
-        })}
-      </Card>
+    <div className="space-y-3">
+      <div className="flex flex-wrap items-center gap-2">
+        <div className="relative flex-1 min-w-[200px]">
+          <Search className="h-4 w-4 absolute left-2.5 top-2.5 text-muted-foreground" />
+          <Input
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Sök på order, kund, e-post eller tracking…"
+            className="pl-8"
+          />
+        </div>
+        <div className="flex gap-1">
+          <FilterChip active={filter === "all"} count={counts.all} onClick={() => setFilter("all")}>Alla</FilterChip>
+          <FilterChip active={filter === "unbooked"} count={counts.unbooked} onClick={() => setFilter("unbooked")}>Att boka</FilterChip>
+          <FilterChip active={filter === "booked"} count={counts.booked} onClick={() => setFilter("booked")}>Bokade</FilterChip>
+          <FilterChip active={filter === "shipped"} count={counts.shipped} onClick={() => setFilter("shipped")}>Skickade</FilterChip>
+        </div>
+        <Button variant="outline" size="icon" onClick={refresh} disabled={refreshing} aria-label="Uppdatera">
+          <RefreshCw className={`h-4 w-4 ${refreshing ? "animate-spin" : ""}`} />
+        </Button>
+      </div>
 
-      {sel ? (
-        <OrderDetail
-          order={sel}
-          draft={drafts[sel.id]}
-          shipment={shipments[sel.id]}
-          onChanged={refresh}
-        />
-      ) : (
-        <Card className="p-6 text-muted-foreground">Välj en order till vänster.</Card>
-      )}
+      <div className="grid lg:grid-cols-[380px_1fr] gap-4">
+        <Card className="p-2 max-h-[75vh] overflow-auto">
+          {filtered.length === 0 && (
+            <div className="p-6 text-center text-sm text-muted-foreground space-y-2">
+              <Inbox className="h-8 w-8 mx-auto opacity-50" />
+              {orders.length === 0
+                ? <p>Inga ordrar än. När en kund handlar i Webbskap-sajten kommer ordern hit automatiskt.</p>
+                : <p>Inga ordrar matchar filtret.</p>}
+            </div>
+          )}
+          {filtered.map((o) => {
+            const sh = shipments[o.id];
+            return (
+              <button
+                key={o.id}
+                onClick={() => setSelected(o.id)}
+                className={`w-full text-left p-3 rounded hover:bg-muted ${selected === o.id ? "bg-muted" : ""}`}
+              >
+                <div className="flex items-center justify-between">
+                  <div className="font-medium">#{o.invoice_no ?? o.webbskap_order_id}</div>
+                  {sh
+                    ? <Badge variant="secondary">{sh.status}</Badge>
+                    : <Badge>{o.status}</Badge>}
+                </div>
+                <div className="text-sm text-muted-foreground truncate">{o.customer_name}</div>
+                <div className="text-xs text-muted-foreground">
+                  {o.total} {o.currency ?? ""} · {o.weight ?? "?"} {o.weight_unit}
+                </div>
+              </button>
+            );
+          })}
+        </Card>
+
+        {sel ? (
+          <OrderDetail
+            order={sel}
+            draft={drafts[sel.id]}
+            shipment={shipments[sel.id]}
+            onChanged={refresh}
+          />
+        ) : (
+          <Card className="p-6 text-muted-foreground flex items-center justify-center min-h-[200px]">
+            <div className="text-center space-y-1">
+              <Package className="h-8 w-8 mx-auto opacity-50" />
+              <p className="text-sm">Välj en order till vänster för att boka frakt.</p>
+            </div>
+          </Card>
+        )}
+      </div>
     </div>
+  );
+}
+
+function FilterChip({ active, count, onClick, children }: { active: boolean; count: number; onClick: () => void; children: React.ReactNode }) {
+  return (
+    <button
+      onClick={onClick}
+      className={`text-xs px-2.5 py-1.5 rounded-full transition-colors ${
+        active ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground hover:bg-muted/80"
+      }`}
+    >
+      {children} <span className="opacity-70">({count})</span>
+    </button>
   );
 }
 
 function OrderDetail({ order, draft, shipment, onChanged }: any) {
   const [d, setD] = useState<any>(draft ?? {});
   const [busy, setBusy] = useState(false);
+  const [tracking, setTracking] = useState(false);
   useEffect(() => setD(draft ?? {}), [draft?.id]);
 
   const ship = order.shipping_address ?? {};
@@ -109,6 +186,10 @@ function OrderDetail({ order, draft, shipment, onChanged }: any) {
   };
 
   const book = async () => {
+    if (!d?.weight_kg || d.weight_kg <= 0) {
+      toast.error("Ange vikt innan du bokar");
+      return;
+    }
     setBusy(true);
     await saveDraft();
     const { data, error } = await supabase.functions.invoke("book-shipment", { body: { draft_id: d.id } });
@@ -127,6 +208,14 @@ function OrderDetail({ order, draft, shipment, onChanged }: any) {
     else window.open((data as any).url, "_blank");
   };
 
+  const refreshTracking = async () => {
+    setTracking(true);
+    const { error } = await supabase.functions.invoke("track-shipment", { body: { shipment_id: shipment.id } });
+    setTracking(false);
+    if (error) toast.error("Kunde inte hämta status");
+    else { toast.success("Status uppdaterad"); onChanged(); }
+  };
+
   const printPackingSlip = () => {
     const items = (order.items ?? []) as any[];
     const html = `<!doctype html><html><head><meta charset="utf-8"><title>Följesedel ${order.invoice_no ?? ""}</title>
@@ -143,14 +232,18 @@ function OrderDetail({ order, draft, shipment, onChanged }: any) {
     w?.document.write(html); w?.document.close();
   };
 
+  const trackingUrl = shipment?.tracking_no
+    ? `https://tracking.postnord.com/se/?id=${shipment.tracking_no}`
+    : null;
+
   return (
     <Card className="p-6 space-y-5">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
           <div className="text-xl font-semibold">#{order.invoice_no ?? order.webbskap_order_id}</div>
           <div className="text-sm text-muted-foreground">{order.customer_name} · {order.customer_email}</div>
         </div>
-        <div className="flex gap-2">
+        <div className="flex gap-2 flex-wrap">
           <Button variant="outline" onClick={printPackingSlip}>Följesedel</Button>
           {shipment
             ? <Button onClick={downloadLabel}>Ladda ner fraktsedel</Button>
@@ -204,9 +297,24 @@ function OrderDetail({ order, draft, shipment, onChanged }: any) {
       )}
 
       {shipment && (
-        <section className="pt-4 border-t text-sm space-y-1">
-          <div><span className="text-muted-foreground">Tracking:</span> <code>{shipment.tracking_no ?? "—"}</code></div>
-          <div><span className="text-muted-foreground">Status:</span> <Badge variant="secondary">{shipment.status}</Badge></div>
+        <section className="pt-4 border-t text-sm space-y-2">
+          <div className="flex items-center gap-2">
+            <span className="text-muted-foreground">Tracking:</span>
+            <code>{shipment.tracking_no ?? "—"}</code>
+            {trackingUrl && (
+              <a href={trackingUrl} target="_blank" rel="noreferrer" className="text-primary inline-flex items-center gap-1 hover:underline">
+                Spåra <ExternalLink className="h-3 w-3" />
+              </a>
+            )}
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="text-muted-foreground">Status:</span>
+            <Badge variant="secondary">{shipment.status}</Badge>
+            <Button variant="ghost" size="sm" onClick={refreshTracking} disabled={tracking} className="h-7 px-2">
+              <RefreshCw className={`h-3 w-3 mr-1 ${tracking ? "animate-spin" : ""}`} />
+              Uppdatera status
+            </Button>
+          </div>
           <div className="text-muted-foreground">Bokad: {new Date(shipment.booked_at).toLocaleString("sv-SE")}</div>
         </section>
       )}
