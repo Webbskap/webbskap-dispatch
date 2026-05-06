@@ -599,6 +599,16 @@ function Bar({ label, pct }: { label: string; pct: number }) {
   );
 }
 
+function StatusRowDemo({ ok, label }: { ok: boolean; label: string }) {
+  return (
+    <div className="flex items-start gap-2">
+      {ok ? <CheckCircle2 className="h-4 w-4 mt-0.5 text-green-600 shrink-0" />
+          : <AlertCircle className="h-4 w-4 mt-0.5 text-muted-foreground shrink-0" />}
+      <span className={ok ? "" : "text-muted-foreground"}>{label}</span>
+    </div>
+  );
+}
+
 function DemoSettings({ defaultService, setDefaultService }: { defaultService: string; setDefaultService: (v: string) => void }) {
   return (
     <div className="space-y-6 max-w-3xl">
