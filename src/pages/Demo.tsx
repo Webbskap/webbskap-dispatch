@@ -237,7 +237,7 @@ function StatusBadge({ order }: { order: DemoOrder }) {
 }
 
 function DemoDetail({ order, labelFormat, defaultService, onBook, onReturn }:
-  { order: DemoOrder; labelFormat: "pdf" | "zpl"; defaultService: string; onBook: () => void; onReturn: () => void }) {
+  { order: DemoOrder; labelFormat: string; defaultService: string; onBook: () => void; onReturn: () => void }) {
   const [d, setD] = useState({ ...order.draft, service_code: order.draft.service_code || defaultService });
   const [confirmOpen, setConfirmOpen] = useState(false);
   const ship = order.shipping_address;
