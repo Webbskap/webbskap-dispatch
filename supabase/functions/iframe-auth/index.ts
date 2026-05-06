@@ -11,7 +11,10 @@ const corsHeaders = {
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-const IFRAME_SECRET = Deno.env.get("IFRAME_HMAC_SECRET") ?? "PLACEHOLDER_CHANGE_ME";
+const IFRAME_SECRET = Deno.env.get("IFRAME_HMAC_SECRET");
+if (!IFRAME_SECRET) {
+  throw new Error("IFRAME_HMAC_SECRET environment variable is required");
+}
 const MAX_AGE_SEC = 300; // 5 min token validity
 
 async function hmacHex(secret: string, msg: string): Promise<string> {
