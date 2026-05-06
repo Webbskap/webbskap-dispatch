@@ -107,17 +107,6 @@ export function Onboarding({ tenant, userId }: { tenant: Tenant; userId?: string
             placeholder="Klistra in secret som Webbskap visade"
           />
         </div>
-        <div>
-          <Label>Webbskap Project-ID</Label>
-          <Input
-            value={projectId}
-            onChange={(e) => setProjectId(e.target.value)}
-            placeholder="Hittas i Webbskap-projektets inställningar"
-          />
-          <p className="text-xs text-muted-foreground mt-1">
-            Används för att verifiera att inkommande ordrar tillhör rätt projekt.
-          </p>
-        </div>
       </Card>
 
       {/* Avancerat */}
