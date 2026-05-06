@@ -44,14 +44,12 @@ export function Onboarding({ tenant, userId }: { tenant: Tenant; userId?: string
 
   useEffect(() => {
     (async () => {
-      const [{ data: w }, { data: p }, { data: t }] = await Promise.all([
+      const [{ data: w }, { data: p }] = await Promise.all([
         supabase.from("tenant_webbskap_config").select("*").eq("tenant_id", tenant.id).maybeSingle(),
         supabase.from("tenant_postnord_config").select("*").eq("tenant_id", tenant.id).maybeSingle(),
-        supabase.from("tenants").select("project_id").eq("id", tenant.id).maybeSingle(),
       ]);
       if (w) setWb({ website_api_key: w.website_api_key ?? "", webhook_secret: w.webhook_secret ?? "" });
       if (p) setPn((prev) => ({ ...prev, ...p }));
-      if (t?.project_id) setProjectId(t.project_id);
     })();
     // eslint-disable-next-line
   }, [tenant.id]);
@@ -60,12 +58,8 @@ export function Onboarding({ tenant, userId }: { tenant: Tenant; userId?: string
     setSaving(true);
     const a = await supabase.from("tenant_webbskap_config").upsert({ tenant_id: tenant.id, ...wb });
     const b = await supabase.from("tenant_postnord_config").upsert({ tenant_id: tenant.id, ...pn });
-    let c: any = { error: null };
-    if (projectId) {
-      c = await supabase.from("tenants").update({ project_id: projectId }).eq("id", tenant.id);
-    }
     setSaving(false);
-    if (a.error || b.error || c.error) toast.error("Kunde inte spara");
+    if (a.error || b.error) toast.error("Kunde inte spara");
     else toast.success("Sparat");
   };
 
