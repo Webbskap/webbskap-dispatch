@@ -11,7 +11,12 @@ const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 const ANON = Deno.env.get("SUPABASE_ANON_KEY")!;
 
-const POSTNORD_BASE = "https://api2.postnord.com/rest/shipment/v3/edi";
+// Partner-integration: en global API-nyckel för hela plattformen.
+// Per-tenant kundnummer (partyId) styr fakturering hos PostNord.
+const POSTNORD_PARTNER_KEY = Deno.env.get("POSTNORD_API_KEY") ?? "";
+const POSTNORD_PARTNER_KEY_SANDBOX = Deno.env.get("POSTNORD_API_KEY_SANDBOX") ?? "";
+const POSTNORD_BASE_LIVE = "https://api2.postnord.com/rest/shipment/v3/edi";
+const POSTNORD_BASE_SANDBOX = "https://atapi2.postnord.com/rest/shipment/v3/edi";
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
@@ -73,8 +78,13 @@ Deno.serve(async (req) => {
       .select("*")
       .eq("tenant_id", draft.tenant_id)
       .single();
-    if (!pnCfg?.api_key) {
-      return new Response(JSON.stringify({ error: "postnord_not_configured" }), {
+    // Välj nyckel: tenant.api_key (kompatibilitet) > global Partner-nyckel
+    const env = (pnCfg?.environment ?? "sandbox") as "sandbox" | "live";
+    const partnerKey = env === "live" ? POSTNORD_PARTNER_KEY : POSTNORD_PARTNER_KEY_SANDBOX;
+    const apiKey = pnCfg?.api_key || partnerKey;
+    const pnBase = env === "live" ? POSTNORD_BASE_LIVE : POSTNORD_BASE_SANDBOX;
+    if (!apiKey || !pnCfg?.customer_number) {
+      return new Response(JSON.stringify({ error: "postnord_not_configured", details: "Saknar API-nyckel eller kundnummer" }), {
         status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
@@ -128,7 +138,7 @@ Deno.serve(async (req) => {
     };
 
     // PostNord v3: apikey is a query parameter; paperSize controls PDF size.
-    const pnUrl = `${POSTNORD_BASE}/labels/pdf?apikey=${encodeURIComponent(pnCfg.api_key)}&paperSize=A4`;
+    const pnUrl = `${pnBase}/labels/pdf?apikey=${encodeURIComponent(apiKey)}&paperSize=A4`;
     const pnRes = await fetch(pnUrl, {
       method: "POST",
       headers: {
