@@ -132,6 +132,7 @@ export function Onboarding({ tenant, userId }: { tenant: Tenant; userId?: string
               <p className="text-xs text-muted-foreground mt-1">
                 Vi använder en gemensam plattformsnyckel hos Webbskap automatiskt. Fyll bara i detta om du vill köra mot ditt eget API-konto.
               </p>
+            </div>
             <div>
               <Label>Default service code</Label>
               <Input value={pn.default_service_code} onChange={(e) => setPn({ ...pn, default_service_code: e.target.value })} />
