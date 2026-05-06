@@ -38,6 +38,13 @@ type DemoOrder = {
   shipment?: { tracking_no: string; status: "booked" | "in_transit" | "delivered"; booked_at: string; events: TrackEvent[]; return_tracking_no?: string };
 };
 
+// Förinställda paketstorlekar – matchar inställningarna under "Standardpaket"
+const PRESET_SIZES = [
+  { name: "Litet (S)",  l: 25, w: 20, h: 5 },
+  { name: "Medium (M)", l: 35, w: 25, h: 15 },
+  { name: "Stort (L)",  l: 50, w: 35, h: 25 },
+];
+
 // PostNord-tjänster (vanligaste – fyll på vid behov)
 const SERVICES = [
   { code: "17",   name: "MyPack Collect (utlämningsställe)", domestic: true },
