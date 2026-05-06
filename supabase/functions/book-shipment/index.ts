@@ -78,8 +78,13 @@ Deno.serve(async (req) => {
       .select("*")
       .eq("tenant_id", draft.tenant_id)
       .single();
-    if (!pnCfg?.api_key) {
-      return new Response(JSON.stringify({ error: "postnord_not_configured" }), {
+    // Välj nyckel: tenant.api_key (kompatibilitet) > global Partner-nyckel
+    const env = (pnCfg?.environment ?? "sandbox") as "sandbox" | "live";
+    const partnerKey = env === "live" ? POSTNORD_PARTNER_KEY : POSTNORD_PARTNER_KEY_SANDBOX;
+    const apiKey = pnCfg?.api_key || partnerKey;
+    const pnBase = env === "live" ? POSTNORD_BASE_LIVE : POSTNORD_BASE_SANDBOX;
+    if (!apiKey || !pnCfg?.customer_number) {
+      return new Response(JSON.stringify({ error: "postnord_not_configured", details: "Saknar API-nyckel eller kundnummer" }), {
         status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
