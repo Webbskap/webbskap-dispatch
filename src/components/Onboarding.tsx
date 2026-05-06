@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { BillingSection } from "@/components/BillingSection";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import { ChevronDown, Copy, Check } from "lucide-react";
+import { ChevronDown, Copy, Check, CheckCircle2, AlertCircle, Loader2, Sparkles } from "lucide-react";
 
 function CopyField({ label, value }: { label: string; value: string }) {
   const [copied, setCopied] = useState(false);
@@ -31,6 +31,22 @@ function CopyField({ label, value }: { label: string; value: string }) {
   );
 }
 
+function StatusRow({ ok, label, hint }: { ok: boolean; label: string; hint?: string }) {
+  return (
+    <div className="flex items-start gap-2 text-sm">
+      {ok ? (
+        <CheckCircle2 className="h-4 w-4 mt-0.5 text-green-600 shrink-0" />
+      ) : (
+        <AlertCircle className="h-4 w-4 mt-0.5 text-muted-foreground shrink-0" />
+      )}
+      <div>
+        <span className={ok ? "" : "text-muted-foreground"}>{label}</span>
+        {hint && !ok && <p className="text-xs text-muted-foreground">{hint}</p>}
+      </div>
+    </div>
+  );
+}
+
 export function Onboarding({ tenant, userId }: { tenant: Tenant; userId?: string }) {
   const [wb, setWb] = useState({ website_api_key: "", webhook_secret: "" });
   const [pn, setPn] = useState({
@@ -41,15 +57,22 @@ export function Onboarding({ tenant, userId }: { tenant: Tenant; userId?: string
   });
   const [saving, setSaving] = useState(false);
   const [advancedOpen, setAdvancedOpen] = useState(false);
+  const [validating, setValidating] = useState(false);
+  const [cnValid, setCnValid] = useState<null | boolean>(null);
+  const [prefilling, setPrefilling] = useState(false);
+  const [lastEvent, setLastEvent] = useState<{ topic: string; received_at: string; verified: boolean } | null>(null);
 
   useEffect(() => {
     (async () => {
-      const [{ data: w }, { data: p }] = await Promise.all([
+      const [{ data: w }, { data: p }, { data: ev }] = await Promise.all([
         supabase.from("tenant_webbskap_config").select("*").eq("tenant_id", tenant.id).maybeSingle(),
         supabase.from("tenant_postnord_config").select("*").eq("tenant_id", tenant.id).maybeSingle(),
+        supabase.from("webhook_events").select("topic,received_at,verified")
+          .eq("tenant_id", tenant.id).order("received_at", { ascending: false }).limit(1).maybeSingle(),
       ]);
       if (w) setWb({ website_api_key: w.website_api_key ?? "", webhook_secret: w.webhook_secret ?? "" });
       if (p) setPn((prev) => ({ ...prev, ...p }));
+      if (ev) setLastEvent(ev);
     })();
     // eslint-disable-next-line
   }, [tenant.id]);
@@ -63,13 +86,88 @@ export function Onboarding({ tenant, userId }: { tenant: Tenant; userId?: string
     else toast.success("Sparat");
   };
 
+  const validateCustomerNumber = async () => {
+    if (!pn.customer_number || !pn.api_key) {
+      toast.error("Fyll i API-nyckel och kundnummer först");
+      return;
+    }
+    setValidating(true);
+    setCnValid(null);
+    const { data, error } = await supabase.functions.invoke("validate-customer-number", {
+      body: { customer_number: pn.customer_number, country_code: pn.sender_country, api_key: pn.api_key },
+    });
+    setValidating(false);
+    if (error) { toast.error("Validering misslyckades"); return; }
+    setCnValid(!!data?.valid);
+    if (data?.valid) toast.success("Kundnummer giltigt");
+    else toast.error("Kundnummer kunde inte verifieras");
+  };
+
+  const prefillFromWebbskap = async () => {
+    setPrefilling(true);
+    const { data, error } = await supabase.functions.invoke("webbskap-site-info", {
+      body: { tenant_id: tenant.id },
+    });
+    setPrefilling(false);
+    if (error || !data?.site) {
+      toast.error("Kunde inte hämta info från Webbskap");
+      return;
+    }
+    const s = data.site as any;
+    setPn((prev) => ({
+      ...prev,
+      sender_company: prev.sender_company || s.companyName || s.name || "",
+      sender_name: prev.sender_name || s.contactName || s.ownerName || "",
+      sender_email: prev.sender_email || s.email || "",
+      sender_phone: prev.sender_phone || s.phone || "",
+      sender_address: prev.sender_address || s.address || s.street || "",
+      sender_zip: prev.sender_zip || s.zipCode || s.postalCode || "",
+      sender_city: prev.sender_city || s.city || "",
+      sender_country: prev.sender_country || (s.country ?? "SE"),
+    }));
+    setAdvancedOpen(true);
+    toast.success("Avsändare ifylld från Webbskap");
+  };
+
   const webhookUrl = `https://olavdstyfkyoctgtssjk.supabase.co/functions/v1/webhook-ingest/${tenant.id}`;
+
+  const ready = {
+    postnord: !!(pn.api_key && pn.customer_number),
+    webhook: !!wb.webhook_secret,
+    sender: !!(pn.sender_address && pn.sender_zip && pn.sender_city),
+    receivedEvent: !!lastEvent,
+  };
+  const allReady = ready.postnord && ready.webhook && ready.sender;
 
   return (
     <div className="space-y-6 max-w-3xl">
       {userId && <BillingSection userId={userId} />}
 
-      {/* STEG 1: Det enda kunden måste mata in */}
+      {/* Status */}
+      <Card className="p-6 space-y-3">
+        <div className="flex items-center justify-between">
+          <h2 className="text-lg font-semibold">Setup-status</h2>
+          {allReady ? (
+            <span className="text-xs px-2 py-1 rounded-full bg-green-100 text-green-700">Redo att boka</span>
+          ) : (
+            <span className="text-xs px-2 py-1 rounded-full bg-muted text-muted-foreground">Pågående</span>
+          )}
+        </div>
+        <div className="space-y-1.5">
+          <StatusRow ok={ready.postnord} label="PostNord API-nyckel & kundnummer" hint="Krävs för att boka frakt" />
+          <StatusRow ok={ready.webhook} label="Webhook secret från Webbskap" hint="Krävs för att ta emot ordrar" />
+          <StatusRow ok={ready.sender} label="Avsändaradress" hint="Klicka 'Hämta från Webbskap' nedan" />
+          <StatusRow
+            ok={ready.receivedEvent}
+            label={lastEvent
+              ? `Senaste event: ${lastEvent.topic} (${new Date(lastEvent.received_at).toLocaleString("sv-SE")}${lastEvent.verified ? "" : " – ej verifierat"})`
+              : "Ingen webhook mottagen ännu"}
+            hint="Vi listar här när första ordern kommer in"
+          />
+        </div>
+      </Card>
+
+      {/* PostNord */}
       <Card className="p-6 space-y-4">
         <div>
           <h2 className="text-lg font-semibold">PostNord-uppgifter</h2>
@@ -80,16 +178,24 @@ export function Onboarding({ tenant, userId }: { tenant: Tenant; userId?: string
         <div className="grid sm:grid-cols-2 gap-3">
           <div>
             <Label>API-nyckel</Label>
-            <Input value={pn.api_key} onChange={(e) => setPn({ ...pn, api_key: e.target.value })} placeholder="Klistra in från PostNord" />
+            <Input value={pn.api_key} onChange={(e) => { setPn({ ...pn, api_key: e.target.value }); setCnValid(null); }} placeholder="Klistra in från PostNord" />
           </div>
           <div>
             <Label>Kundnummer</Label>
-            <Input value={pn.customer_number} onChange={(e) => setPn({ ...pn, customer_number: e.target.value })} placeholder="t.ex. 1234567" />
+            <Input value={pn.customer_number} onChange={(e) => { setPn({ ...pn, customer_number: e.target.value }); setCnValid(null); }} placeholder="t.ex. 1234567" />
           </div>
+        </div>
+        <div className="flex items-center gap-3">
+          <Button type="button" variant="outline" size="sm" onClick={validateCustomerNumber} disabled={validating}>
+            {validating ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+            Validera kundnummer mot PostNord
+          </Button>
+          {cnValid === true && <span className="text-xs text-green-700 flex items-center gap-1"><CheckCircle2 className="h-3.5 w-3.5" /> Giltigt</span>}
+          {cnValid === false && <span className="text-xs text-destructive flex items-center gap-1"><AlertCircle className="h-3.5 w-3.5" /> Hittades ej</span>}
         </div>
       </Card>
 
-      {/* STEG 2: Webhook-koppling till Webbskap */}
+      {/* Webhook */}
       <Card className="p-6 space-y-4">
         <div>
           <h2 className="text-lg font-semibold">Webhook från Webbskap</h2>
@@ -122,6 +228,11 @@ export function Onboarding({ tenant, userId }: { tenant: Tenant; userId?: string
             <ChevronDown className={`h-5 w-5 transition-transform ${advancedOpen ? "rotate-180" : ""}`} />
           </CollapsibleTrigger>
           <CollapsibleContent className="space-y-4 pt-4">
+            <Button type="button" variant="outline" size="sm" onClick={prefillFromWebbskap} disabled={prefilling}>
+              {prefilling ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Sparkles className="h-4 w-4 mr-2" />}
+              Hämta avsändare från Webbskap
+            </Button>
+
             <div>
               <Label>Website API-key (Webbskap)</Label>
               <Input
@@ -136,6 +247,7 @@ export function Onboarding({ tenant, userId }: { tenant: Tenant; userId?: string
             <div>
               <Label>Default service code</Label>
               <Input value={pn.default_service_code} onChange={(e) => setPn({ ...pn, default_service_code: e.target.value })} />
+              <p className="text-xs text-muted-foreground mt-1">17 = Mypack Home, 18 = Parcel, 19 = Mypack Collect</p>
             </div>
             <div>
               <h3 className="text-sm font-medium mb-2">Avsändare</h3>
