@@ -127,9 +127,11 @@ export function Onboarding({ tenant, userId }: { tenant: Tenant; userId?: string
               <Input
                 value={wb.website_api_key}
                 onChange={(e) => setWb({ ...wb, website_api_key: e.target.value })}
-                placeholder="Behövs för att skicka tracking tillbaka till Webbskap"
+                placeholder="Valfri – behövs bara om plattformsnyckel saknas"
               />
-            </div>
+              <p className="text-xs text-muted-foreground mt-1">
+                Vi använder en gemensam plattformsnyckel hos Webbskap automatiskt. Fyll bara i detta om du vill köra mot ditt eget API-konto.
+              </p>
             <div>
               <Label>Default service code</Label>
               <Input value={pn.default_service_code} onChange={(e) => setPn({ ...pn, default_service_code: e.target.value })} />
