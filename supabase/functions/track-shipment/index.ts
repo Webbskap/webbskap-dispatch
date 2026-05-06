@@ -1,38 +1,52 @@
 // Refresh shipment tracking status
-// POST /track-shipment { shipment_id }  (or scheduled run when called with {})
+// POST /track-shipment { shipment_id }  (authenticated user, must have tenant access)
+// Or scheduled run with header X-Cron-Secret: <CRON_SECRET> and empty body
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-cron-secret",
 };
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+const ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY")!;
+const CRON_SECRET = Deno.env.get("CRON_SECRET");
 
 const TRACK_BASE = "https://api2.postnord.com/rest/shipment/v5/trackandtrace/findByIdentifier.json";
 
 function mapStatus(s: string | null | undefined): string {
   const v = (s ?? "").toUpperCase();
-  if (v.includes("DELIVERED")) return "delivered";
-  if (v.includes("RETURN")) return "returned";
+  // Order matters: check negations / specific terms before generic substrings
   if (v.includes("CANCEL")) return "cancelled";
+  if (v.includes("RETURN")) return "returned";
+  if (v.includes("NOT_DELIVERED") || v.includes("NOTDELIVERED") || v.includes("FAILED")) return "in_transit";
+  if (v.includes("DELIVERED")) return "delivered";
   if (v.includes("TRANSIT") || v.includes("EN_ROUTE") || v.includes("INFORMED")) return "in_transit";
   if (v.includes("BOOKED") || v.includes("CREATED")) return "booked";
   return "unknown";
+}
+
+function jsonResp(body: unknown, status = 200) {
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: { ...corsHeaders, "Content-Type": "application/json" },
+  });
 }
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   const admin = createClient(SUPABASE_URL, SERVICE_KEY, { auth: { persistSession: false } });
-  let shipmentIds: string[] = [];
 
   try {
     const body = req.method === "POST" ? await req.json().catch(() => ({})) : {};
-    if (body?.shipment_id) {
-      shipmentIds = [body.shipment_id];
-    } else {
-      // Pick recent active shipments
+    const cronHeader = req.headers.get("x-cron-secret");
+    const isCron = !!CRON_SECRET && cronHeader === CRON_SECRET;
+
+    let shipmentIds: string[] = [];
+
+    if (isCron) {
+      // Internal scheduled run — operate on recent active shipments
       const { data } = await admin
         .from("shipments")
         .select("id")
@@ -40,6 +54,44 @@ Deno.serve(async (req) => {
         .order("booked_at", { ascending: false })
         .limit(50);
       shipmentIds = (data ?? []).map((r) => r.id);
+    } else {
+      // Authenticated user request — must specify a shipment they have access to
+      const authHeader = req.headers.get("Authorization");
+      if (!authHeader?.startsWith("Bearer ")) {
+        return jsonResp({ error: "unauthorized" }, 401);
+      }
+      const userClient = createClient(SUPABASE_URL, ANON_KEY, {
+        global: { headers: { Authorization: authHeader } },
+        auth: { persistSession: false },
+      });
+      const token = authHeader.replace("Bearer ", "");
+      const { data: claims, error: cErr } = await userClient.auth.getClaims(token);
+      if (cErr || !claims?.claims?.sub) {
+        return jsonResp({ error: "unauthorized" }, 401);
+      }
+      const userId = claims.claims.sub;
+
+      if (!body?.shipment_id) {
+        return jsonResp({ error: "shipment_id required" }, 400);
+      }
+
+      // Verify tenant access
+      const { data: shipment } = await admin
+        .from("shipments")
+        .select("tenant_id")
+        .eq("id", body.shipment_id)
+        .maybeSingle();
+      if (!shipment) return jsonResp({ error: "not_found" }, 404);
+
+      const { data: access } = await admin
+        .from("user_roles")
+        .select("id")
+        .eq("user_id", userId)
+        .eq("tenant_id", shipment.tenant_id)
+        .maybeSingle();
+      if (!access) return jsonResp({ error: "forbidden" }, 403);
+
+      shipmentIds = [body.shipment_id];
     }
 
     const results: any[] = [];
@@ -67,12 +119,8 @@ Deno.serve(async (req) => {
       results.push({ id, status });
     }
 
-    return new Response(JSON.stringify({ ok: true, results }), {
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
+    return jsonResp({ ok: true, results });
   } catch (e: any) {
-    return new Response(JSON.stringify({ error: String(e?.message ?? e) }), {
-      status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
+    return jsonResp({ error: String(e?.message ?? e) }, 500);
   }
 });
