@@ -11,7 +11,12 @@ const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 const ANON = Deno.env.get("SUPABASE_ANON_KEY")!;
 
-const POSTNORD_BASE = "https://api2.postnord.com/rest/shipment/v3/edi";
+// Partner-integration: en global API-nyckel för hela plattformen.
+// Per-tenant kundnummer (partyId) styr fakturering hos PostNord.
+const POSTNORD_PARTNER_KEY = Deno.env.get("POSTNORD_API_KEY") ?? "";
+const POSTNORD_PARTNER_KEY_SANDBOX = Deno.env.get("POSTNORD_API_KEY_SANDBOX") ?? "";
+const POSTNORD_BASE_LIVE = "https://api2.postnord.com/rest/shipment/v3/edi";
+const POSTNORD_BASE_SANDBOX = "https://atapi2.postnord.com/rest/shipment/v3/edi";
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
