@@ -603,6 +603,27 @@ function DemoSettings({ defaultService, setDefaultService }: { defaultService: s
   return (
     <div className="space-y-6 max-w-3xl">
       <Card className="p-6 space-y-3">
+        <div className="flex items-center justify-between">
+          <h2 className="text-lg font-semibold">Setup-status</h2>
+          <span className="text-xs px-2 py-1 rounded-full bg-green-100 text-green-700">Redo att boka</span>
+        </div>
+        <div className="space-y-1.5 text-sm">
+          <StatusRowDemo ok label="PostNord-kundnummer (validerat)" />
+          <StatusRowDemo ok label="Webbskap-koppling aktiv" />
+          <StatusRowDemo ok label="Avsändaradress ifylld" />
+          <StatusRowDemo ok label="Senaste event: orders/created (idag 09:42)" />
+        </div>
+        <div className="flex gap-2 pt-1">
+          <Button type="button" variant="outline" size="sm" onClick={() => alert("Demo: validerar kundnummer mot PostNord")}>
+            <CheckCircle2 className="h-4 w-4 mr-1.5" /> Validera kundnummer
+          </Button>
+          <Button type="button" variant="outline" size="sm" onClick={() => alert("Demo: hämtar avsändare från Webbskap")}>
+            <Sparkles className="h-4 w-4 mr-1.5" /> Hämta avsändare från Webbskap
+          </Button>
+        </div>
+      </Card>
+
+      <Card className="p-6 space-y-3">
         <h2 className="text-lg font-semibold">1. Webbskap-koppling</h2>
         <div className="flex items-center gap-2">
           <Badge variant="secondary" className="bg-green-100 text-green-900 hover:bg-green-100">
