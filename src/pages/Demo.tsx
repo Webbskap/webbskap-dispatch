@@ -526,25 +526,37 @@ function StatsView({ orders }: { orders: DemoOrder[] }) {
           <Bar label="DPD Företagspaket (1)" pct={10} />
         </div>
       </Card>
-      <Card className="p-6 space-y-3">
-        <div className="flex items-start justify-between gap-4 flex-wrap">
-          <div>
-            <h3 className="text-sm font-medium">Fraktrapport</h3>
-            <p className="text-xs text-muted-foreground mt-1">
-              Snittvikt: 1,7 kg · Snittpris: 96 kr · Period: senaste 30 dagarna
-            </p>
-            <p className="text-xs text-muted-foreground mt-2 max-w-xl">
-              Priserna kommer direkt från PostNords prisuppgifter på varje bokad sändning, så summorna stämmer mot din PostNord-faktura och kan användas i bokföringen. Moms separeras per rad.
-            </p>
-          </div>
-          <div className="flex gap-2">
-            <Button variant="outline" size="sm" onClick={() => alert("Demo: laddar ner fraktrapport som PDF")}>
-              <FileText className="h-4 w-4 mr-1.5" /> Ladda ner PDF
-            </Button>
-            <Button variant="outline" size="sm" onClick={() => alert("Demo: laddar ner fraktrapport som CSV")}>
-              CSV
-            </Button>
-          </div>
+      <Card className="p-6 space-y-4">
+        <div>
+          <h3 className="text-sm font-medium">Fraktrapporter per månad</h3>
+          <p className="text-xs text-muted-foreground mt-1 max-w-xl">
+            En ny rapport skapas automatiskt vid månadsskiftet med alla bokade sändningar för månaden. Priserna hämtas direkt från PostNord på varje bokning, så summorna stämmer mot fakturan och kan användas direkt i bokföringen (moms separeras per rad).
+          </p>
+        </div>
+        <div className="border-t pt-3 space-y-2">
+          {[
+            { month: "April 2026",  count: 142, total: "13 624 kr", ready: true },
+            { month: "Mars 2026",   count: 128, total: "11 980 kr", ready: true },
+            { month: "Februari 2026", count: 99, total: "9 312 kr",  ready: true },
+            { month: "Maj 2026",    count: 38,  total: "3 410 kr",  ready: false },
+          ].map((r) => (
+            <div key={r.month} className="flex items-center justify-between gap-3 py-2 border-b last:border-0">
+              <div>
+                <div className="text-sm font-medium">{r.month}</div>
+                <div className="text-xs text-muted-foreground">{r.count} sändningar · {r.total}</div>
+              </div>
+              {r.ready ? (
+                <div className="flex gap-2">
+                  <Button variant="outline" size="sm" onClick={() => alert(`Demo: laddar ner ${r.month} som PDF`)}>
+                    <FileText className="h-4 w-4 mr-1.5" /> PDF
+                  </Button>
+                  <Button variant="ghost" size="sm" onClick={() => alert(`Demo: laddar ner ${r.month} som CSV`)}>CSV</Button>
+                </div>
+              ) : (
+                <Badge variant="secondary" className="text-xs">Pågår — färdig 1 juni</Badge>
+              )}
+            </div>
+          ))}
         </div>
       </Card>
     </div>
