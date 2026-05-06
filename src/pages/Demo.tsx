@@ -13,7 +13,7 @@ import {
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Package, Settings, CheckCircle2, Truck, MapPin, Inbox, RefreshCw,
-  Undo2, CalendarClock, BarChart3, FileText, Printer, Search, AlertCircle, Loader2, Sparkles,
+  Undo2, CalendarClock, BarChart3, FileText, Printer, Search, AlertCircle, Sparkles,
 } from "lucide-react";
 
 // Standalone demo — hardcoded data, no backend, no Webbskap.
