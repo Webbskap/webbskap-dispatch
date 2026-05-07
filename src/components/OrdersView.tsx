@@ -194,8 +194,10 @@ function OrderDetail({ order, draft, shipment, onChanged }: any) {
     await saveDraft();
     const { data, error } = await supabase.functions.invoke("book-shipment", { body: { draft_id: d.id } });
     setBusy(false);
-    if (error || (data as any)?.error) {
-      toast.error((data as any)?.error ?? error?.message ?? "Bokning misslyckades");
+    const errBody = data as any;
+    if (error || errBody?.error) {
+      const msg = errBody?.message ?? errBody?.details ?? errBody?.error ?? error?.message ?? "Bokning misslyckades";
+      toast.error(msg);
     } else {
       toast.success("Bokat hos PostNord!");
       onChanged();

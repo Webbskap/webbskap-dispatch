@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Session } from "@supabase/supabase-js";
 
@@ -25,27 +25,32 @@ export function useAuthAndTenant() {
     return () => sub.subscription.unsubscribe();
   }, []);
 
-  // Resolve tenant — auto-provisions if missing
+  const loadTenant = useCallback(async (signal?: { cancelled: boolean }) => {
+    const { data } = await supabase
+      .from("user_roles")
+      .select("tenant_id, tenants:tenant_id (id, display_name, subdomain, external_customer_id, website_id)")
+      .limit(1)
+      .maybeSingle();
+    let t = (data as any)?.tenants;
+    if (!t) {
+      const { data: prov, error: pErr } = await supabase.functions.invoke("provision-tenant");
+      if (pErr) {
+        if (!signal?.cancelled) setError(pErr.message);
+        return;
+      }
+      t = (prov as any)?.tenant;
+    }
+    if (!signal?.cancelled && t) setTenant(t);
+  }, []);
+
   useEffect(() => {
     if (!session) { setTenant(null); return; }
-    let cancelled = false;
-    (async () => {
-      const { data } = await supabase
-        .from("user_roles")
-        .select("tenant_id, tenants:tenant_id (id, display_name, subdomain, external_customer_id, website_id)")
-        .limit(1)
-        .maybeSingle();
-      let t = (data as any)?.tenants;
-      if (!t) {
-        // Provision on the fly (legacy users without a tenant)
-        const { data: prov, error: pErr } = await supabase.functions.invoke("provision-tenant");
-        if (pErr) { if (!cancelled) setError(pErr.message); return; }
-        t = (prov as any)?.tenant;
-      }
-      if (!cancelled && t) setTenant(t);
-    })();
-    return () => { cancelled = true; };
-  }, [session]);
+    const signal = { cancelled: false };
+    loadTenant(signal);
+    return () => { signal.cancelled = true; };
+  }, [session, loadTenant]);
 
-  return { session, tenant, loading, error };
+  const refetchTenant = useCallback(() => loadTenant(), [loadTenant]);
+
+  return { session, tenant, loading, error, refetchTenant };
 }
