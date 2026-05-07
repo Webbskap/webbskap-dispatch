@@ -26,6 +26,7 @@ export type Database = {
           items: Json
           paid: boolean | null
           raw: Json | null
+          requires_shipping: boolean
           shipping_address: Json | null
           shipping_amount: number | null
           shipping_name: string | null
@@ -50,6 +51,7 @@ export type Database = {
           items?: Json
           paid?: boolean | null
           raw?: Json | null
+          requires_shipping?: boolean
           shipping_address?: Json | null
           shipping_amount?: number | null
           shipping_name?: string | null
@@ -74,6 +76,7 @@ export type Database = {
           items?: Json
           paid?: boolean | null
           raw?: Json | null
+          requires_shipping?: boolean
           shipping_address?: Json | null
           shipping_amount?: number | null
           shipping_name?: string | null
