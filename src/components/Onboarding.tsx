@@ -47,8 +47,10 @@ function StatusRow({ ok, label, hint }: { ok: boolean; label: string; hint?: str
   );
 }
 
-export function Onboarding({ tenant, userId }: { tenant: Tenant; userId?: string }) {
+export function Onboarding({ tenant, userId, onTenantUpdated }: { tenant: Tenant; userId?: string; onTenantUpdated?: () => void }) {
   const [wb, setWb] = useState({ website_api_key: "", webhook_secret: "" });
+  const [subdomain, setSubdomain] = useState(tenant.subdomain ?? "");
+  const [savingSubdomain, setSavingSubdomain] = useState(false);
   const [pn, setPn] = useState({
     api_key: "", customer_number: "", default_service_code: "17",
     sender_name: "", sender_company: "", sender_address: "",
@@ -84,6 +86,30 @@ export function Onboarding({ tenant, userId }: { tenant: Tenant; userId?: string
     setSaving(false);
     if (a.error || b.error) toast.error("Kunde inte spara");
     else toast.success("Sparat");
+  };
+
+  const saveSubdomain = async () => {
+    const cleaned = subdomain
+      .trim()
+      .toLowerCase()
+      .replace(/^https?:\/\//, "")
+      .replace(/\.webbskap\.se.*$/, "")
+      .replace(/\/.*$/, "");
+    if (!cleaned) { toast.error("Ange din subdomän"); return; }
+    if (!/^[a-z0-9-]+$/.test(cleaned)) {
+      toast.error("Subdomänen får bara innehålla bokstäver, siffror och bindestreck");
+      return;
+    }
+    setSavingSubdomain(true);
+    const { error } = await supabase.from("tenants").update({ subdomain: cleaned }).eq("id", tenant.id);
+    setSavingSubdomain(false);
+    if (error) {
+      toast.error("Kunde inte spara subdomänen");
+    } else {
+      setSubdomain(cleaned);
+      toast.success("Subdomän sparad");
+      onTenantUpdated?.();
+    }
   };
 
   const validateCustomerNumber = async () => {
@@ -132,12 +158,13 @@ export function Onboarding({ tenant, userId }: { tenant: Tenant; userId?: string
   const webhookUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/webhook-ingest/${tenant.id}`;
 
   const ready = {
+    subdomain: !!tenant.subdomain,
     postnord: !!(pn.api_key && pn.customer_number),
     webhook: !!wb.webhook_secret,
     sender: !!(pn.sender_address && pn.sender_zip && pn.sender_city),
     receivedEvent: !!lastEvent,
   };
-  const allReady = ready.postnord && ready.webhook && ready.sender;
+  const allReady = ready.subdomain && ready.postnord && ready.webhook && ready.sender;
 
   return (
     <div className="space-y-6 max-w-3xl">
@@ -154,6 +181,7 @@ export function Onboarding({ tenant, userId }: { tenant: Tenant; userId?: string
           )}
         </div>
         <div className="space-y-1.5">
+          <StatusRow ok={ready.subdomain} label="Webbskap-subdomän" hint="Krävs för att uppdatera ordrar tillbaka till din butik" />
           <StatusRow ok={ready.postnord} label="PostNord API-nyckel & kundnummer" hint="Krävs för att boka frakt" />
           <StatusRow ok={ready.webhook} label="Webhook secret från Webbskap" hint="Krävs för att ta emot ordrar" />
           <StatusRow ok={ready.sender} label="Avsändaradress" hint="Klicka 'Hämta från Webbskap' nedan" />
@@ -165,6 +193,36 @@ export function Onboarding({ tenant, userId }: { tenant: Tenant; userId?: string
             hint="Vi listar här när första ordern kommer in"
           />
         </div>
+      </Card>
+
+      {/* Webbskap-sajt */}
+      <Card className="p-6 space-y-4">
+        <div>
+          <h2 className="text-lg font-semibold">Din Webbskap-sajt</h2>
+          <p className="text-sm text-muted-foreground">
+            Ange subdomänen för din butik. Den används för att uppdatera ordrar tillbaka till Webbskap
+            (status, spårningsnummer) när du bokat en frakt.
+          </p>
+        </div>
+        <div>
+          <Label>Subdomän</Label>
+          <div className="flex items-center gap-2">
+            <Input
+              value={subdomain}
+              onChange={(e) => setSubdomain(e.target.value)}
+              placeholder="din-butik"
+              className="flex-1"
+            />
+            <span className="text-sm text-muted-foreground whitespace-nowrap">.webbskap.se</span>
+          </div>
+          <p className="text-xs text-muted-foreground mt-1">
+            T.ex. om din butik finns på <code>min-butik.webbskap.se</code>, skriv <code>min-butik</code>.
+          </p>
+        </div>
+        <Button type="button" variant="outline" size="sm" onClick={saveSubdomain} disabled={savingSubdomain}>
+          {savingSubdomain ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+          Spara subdomän
+        </Button>
       </Card>
 
       {/* PostNord */}
