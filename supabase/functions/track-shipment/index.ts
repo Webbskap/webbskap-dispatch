@@ -12,7 +12,11 @@ const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 const ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY")!;
 const CRON_SECRET = Deno.env.get("CRON_SECRET");
 
-const TRACK_BASE = "https://api2.postnord.com/rest/shipment/v5/trackandtrace/findByIdentifier.json";
+const POSTNORD_PARTNER_KEY_LIVE = Deno.env.get("POSTNORD_API_KEY") ?? "";
+const POSTNORD_PARTNER_KEY_SANDBOX = Deno.env.get("POSTNORD_API_KEY_SANDBOX") ?? "";
+
+const TRACK_BASE_LIVE = "https://api2.postnord.com/rest/shipment/v5/trackandtrace/findByIdentifier.json";
+const TRACK_BASE_SANDBOX = "https://atapi2.postnord.com/rest/shipment/v5/trackandtrace/findByIdentifier.json";
 
 function mapStatus(s: string | null | undefined): string {
   const v = (s ?? "").toUpperCase();
@@ -100,12 +104,17 @@ Deno.serve(async (req) => {
       if (!s?.tracking_no) continue;
       const { data: pn } = await admin
         .from("tenant_postnord_config")
-        .select("api_key")
+        .select("api_key, environment")
         .eq("tenant_id", s.tenant_id)
         .single();
-      if (!pn?.api_key) continue;
 
-      const u = `${TRACK_BASE}?id=${encodeURIComponent(s.tracking_no)}&locale=sv&apikey=${pn.api_key}`;
+      const env = (pn?.environment ?? "sandbox") as "sandbox" | "live";
+      const partnerKey = env === "live" ? POSTNORD_PARTNER_KEY_LIVE : POSTNORD_PARTNER_KEY_SANDBOX;
+      const apiKey = pn?.api_key || partnerKey;
+      if (!apiKey) continue;
+      const trackBase = env === "live" ? TRACK_BASE_LIVE : TRACK_BASE_SANDBOX;
+
+      const u = `${trackBase}?id=${encodeURIComponent(s.tracking_no)}&locale=sv&apikey=${encodeURIComponent(apiKey)}`;
       const r = await fetch(u);
       const j = await r.json().catch(() => null);
       const events = j?.TrackingInformationResponse?.shipments?.[0]?.items?.[0]?.events ?? [];
