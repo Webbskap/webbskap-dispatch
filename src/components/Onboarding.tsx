@@ -74,7 +74,7 @@ export function Onboarding({ tenant, userId, onTenantUpdated }: { tenant: Tenant
           .eq("tenant_id", tenant.id).order("received_at", { ascending: false }).limit(1).maybeSingle(),
       ]);
       if (w) setWb({ website_api_key: w.website_api_key ?? "", webhook_secret: w.webhook_secret ?? "" });
-      if (p) setPn((prev) => ({ ...prev, ...p }));
+      if (p) setPn((prev) => ({ ...prev, ...p, environment: ((p as any).environment ?? "sandbox") as "sandbox" | "live" }));
       if (ev) setLastEvent(ev);
     })();
     // eslint-disable-next-line
