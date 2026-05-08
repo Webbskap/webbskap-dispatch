@@ -211,6 +211,7 @@ function OrderDetail({ order, draft, shipment, onChanged }: any) {
       toast.error("Ange vikt innan du bokar");
       return;
     }
+    setConfirmOpen(false);
     setBusy(true);
     await saveDraft();
     const { data, error } = await supabase.functions.invoke("book-shipment", { body: { draft_id: d.id } });
