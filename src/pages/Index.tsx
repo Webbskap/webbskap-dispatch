@@ -31,7 +31,7 @@ function PlanBadge({ sub, onClick }: { sub: any; onClick: () => void }) {
 export default function Index() {
   const { session, tenant, loading, error, refetchTenant } = useAuthAndTenant();
   const { isActive, loading: subLoading, subscription } = useSubscription(session?.user?.id);
-  const [tab, setTab] = useState<"orders" | "settings">("orders");
+  const [tab, setTab] = useState<"orders" | "stats" | "settings">("orders");
 
   if (loading) return <Centered>Laddar…</Centered>;
 
