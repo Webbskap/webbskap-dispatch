@@ -42,35 +42,19 @@ export function OrdersView({ tenant }: { tenant: Tenant }) {
   const [refreshing, setRefreshing] = useState(false);
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState<Filter>("all");
-  const [labelFormat, setLabelFormat] = useState<string>("A4");
-  const [savingFormat, setSavingFormat] = useState(false);
 
   const refresh = async () => {
     setRefreshing(true);
-    const [{ data: o }, { data: d }, { data: s }, { data: cfg }] = await Promise.all([
+    const [{ data: o }, { data: d }, { data: s }] = await Promise.all([
       supabase.from("orders").select("*").eq("tenant_id", tenant.id).order("created_at", { ascending: false }).limit(200),
       supabase.from("shipment_drafts").select("*").eq("tenant_id", tenant.id),
       supabase.from("shipments").select("*").eq("tenant_id", tenant.id),
-      supabase.from("tenant_postnord_config").select("default_label_format").eq("tenant_id", tenant.id).maybeSingle(),
     ]);
     setOrders(o ?? []);
     setDrafts(Object.fromEntries((d ?? []).map((r) => [r.order_id, r])));
     setShipments(Object.fromEntries((s ?? []).map((r) => [r.order_id, r])));
-    if ((cfg as any)?.default_label_format) setLabelFormat((cfg as any).default_label_format);
     setLoading(false);
     setRefreshing(false);
-  };
-
-  const updateLabelFormat = async (v: string) => {
-    setLabelFormat(v);
-    setSavingFormat(true);
-    const { error } = await supabase
-      .from("tenant_postnord_config")
-      .update({ default_label_format: v })
-      .eq("tenant_id", tenant.id);
-    setSavingFormat(false);
-    if (error) toast.error("Kunde inte spara etikettformat");
-    else toast.success(`Etikettformat: ${v}`);
   };
 
   useEffect(() => {
