@@ -294,6 +294,7 @@ export type Database = {
         Row: {
           api_key: string | null
           customer_number: string | null
+          default_additional_services: Json
           default_service_code: string | null
           environment: string
           sender_address: string | null
@@ -310,6 +311,7 @@ export type Database = {
         Insert: {
           api_key?: string | null
           customer_number?: string | null
+          default_additional_services?: Json
           default_service_code?: string | null
           environment?: string
           sender_address?: string | null
@@ -326,6 +328,7 @@ export type Database = {
         Update: {
           api_key?: string | null
           customer_number?: string | null
+          default_additional_services?: Json
           default_service_code?: string | null
           environment?: string
           sender_address?: string | null
