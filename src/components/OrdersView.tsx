@@ -115,15 +115,6 @@ export function OrdersView({ tenant }: { tenant: Tenant }) {
           <FilterChip active={filter === "shipped"} count={counts.shipped} onClick={() => setFilter("shipped")}>Skickade</FilterChip>
         </div>
         <div className="flex items-center gap-2 text-xs">
-          <span className="text-muted-foreground hidden sm:inline">Etikett:</span>
-          <Select value={labelFormat} onValueChange={updateLabelFormat} disabled={savingFormat}>
-            <SelectTrigger className="h-9 w-28 text-xs"><SelectValue /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="A4">PDF — A4</SelectItem>
-              <SelectItem value="A5">PDF — A5</SelectItem>
-              <SelectItem value="A6">PDF — A6</SelectItem>
-            </SelectContent>
-          </Select>
         </div>
         <Button variant="outline" size="icon" onClick={refresh} disabled={refreshing} aria-label="Uppdatera">
           <RefreshCw className={`h-4 w-4 ${refreshing ? "animate-spin" : ""}`} />
