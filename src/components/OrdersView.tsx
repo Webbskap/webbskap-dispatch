@@ -6,8 +6,26 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
-import { RefreshCw, Search, Package, Inbox, ExternalLink } from "lucide-react";
+import { RefreshCw, Search, Package, Inbox, ExternalLink, FileText, Printer, Truck, MapPin } from "lucide-react";
+
+const SERVICES: Array<{ code: string; name: string; domestic: boolean }> = [
+  { code: "17", name: "MyPack Home (hemleverans)", domestic: true },
+  { code: "19", name: "MyPack Collect (utlämningsställe)", domestic: true },
+  { code: "18", name: "Parcel (företag)", domestic: true },
+  { code: "1", name: "PostNord Parcel International", domestic: false },
+];
+
+const PRESET_SIZES: Array<{ name: string; l: number; w: number; h: number }> = [
+  { name: "S — Litet kuvert", l: 25, w: 18, h: 3 },
+  { name: "M — Standardkartong", l: 35, w: 25, h: 15 },
+  { name: "L — Stor kartong", l: 60, w: 40, h: 30 },
+];
 
 type Order = any;
 type Draft = any;
