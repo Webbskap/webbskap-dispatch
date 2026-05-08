@@ -6,8 +6,26 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
-import { RefreshCw, Search, Package, Inbox, ExternalLink } from "lucide-react";
+import { RefreshCw, Search, Package, Inbox, ExternalLink, FileText, Printer, Truck, MapPin } from "lucide-react";
+
+const SERVICES: Array<{ code: string; name: string; domestic: boolean }> = [
+  { code: "17", name: "MyPack Home (hemleverans)", domestic: true },
+  { code: "19", name: "MyPack Collect (utlämningsställe)", domestic: true },
+  { code: "18", name: "Parcel (företag)", domestic: true },
+  { code: "1", name: "PostNord Parcel International", domestic: false },
+];
+
+const PRESET_SIZES: Array<{ name: string; l: number; w: number; h: number }> = [
+  { name: "S — Litet kuvert", l: 25, w: 18, h: 3 },
+  { name: "M — Standardkartong", l: 35, w: 25, h: 15 },
+  { name: "L — Stor kartong", l: 60, w: 40, h: 30 },
+];
 
 type Order = any;
 type Draft = any;
@@ -171,10 +189,13 @@ function OrderDetail({ order, draft, shipment, onChanged }: any) {
   const [d, setD] = useState<any>(draft ?? {});
   const [busy, setBusy] = useState(false);
   const [tracking, setTracking] = useState(false);
+  const [confirmOpen, setConfirmOpen] = useState(false);
   useEffect(() => setD(draft ?? {}), [draft?.id]);
 
   const ship = order.shipping_address ?? {};
-
+  const isInternational = ship.country && String(ship.country).toUpperCase() !== "SE";
+  const serviceCode = d.service_code || "17";
+  const serviceLabel = SERVICES.find((s) => s.code === serviceCode)?.name ?? serviceCode;
   const saveDraft = async () => {
     if (!d?.id) return;
     const { error } = await supabase.from("shipment_drafts").update({
@@ -190,6 +211,7 @@ function OrderDetail({ order, draft, shipment, onChanged }: any) {
       toast.error("Ange vikt innan du bokar");
       return;
     }
+    setConfirmOpen(false);
     setBusy(true);
     await saveDraft();
     const { data, error } = await supabase.functions.invoke("book-shipment", { body: { draft_id: d.id } });
@@ -245,18 +267,29 @@ function OrderDetail({ order, draft, shipment, onChanged }: any) {
     ? `https://tracking.postnord.com/se/?id=${shipment.tracking_no}`
     : null;
 
+  const events: Array<{ status: string; description?: string; location?: string; at: string }> =
+    Array.isArray(shipment?.status_history) ? shipment.status_history : [];
+
   return (
     <Card className="p-6 space-y-5">
-      <div className="flex items-center justify-between flex-wrap gap-3">
-        <div>
-          <div className="text-xl font-semibold">#{order.invoice_no ?? order.webbskap_order_id}</div>
-          <div className="text-sm text-muted-foreground">{order.customer_name} · {order.customer_email}</div>
+      <div className="flex items-start justify-between gap-4 flex-wrap">
+        <div className="min-w-0">
+          <div className="text-xl font-semibold truncate">#{order.invoice_no ?? order.webbskap_order_id}</div>
+          <div className="text-sm text-muted-foreground truncate">{order.customer_name} · {order.customer_email}</div>
         </div>
         <div className="flex gap-2 flex-wrap">
-          <Button variant="outline" onClick={printPackingSlip}>Följesedel</Button>
-          {shipment
-            ? <Button onClick={downloadLabel}>Ladda ner fraktsedel</Button>
-            : <Button onClick={book} disabled={busy}>{busy ? "Bokar…" : "Boka & skriv fraktsedel"}</Button>}
+          <Button variant="outline" onClick={printPackingSlip}>
+            <FileText className="h-4 w-4 mr-1.5" />Följesedel
+          </Button>
+          {shipment ? (
+            <Button onClick={downloadLabel}>
+              <Printer className="h-4 w-4 mr-1.5" />Ladda ner fraktsedel
+            </Button>
+          ) : (
+            <Button onClick={() => setConfirmOpen(true)} disabled={busy}>
+              {busy ? "Bokar…" : "Boka & skriv fraktsedel"}
+            </Button>
+          )}
         </div>
       </div>
 
@@ -265,10 +298,15 @@ function OrderDetail({ order, draft, shipment, onChanged }: any) {
           <h3 className="text-sm font-medium mb-2">Mottagare</h3>
           <div className="text-sm">
             {ship.name ?? order.customer_name}<br />
-            {ship.address}<br />{ship.address2}<br />
+            {ship.address}{ship.address2 ? <><br />{ship.address2}</> : null}<br />
             {ship.zipCode} {ship.city}<br />
-            {ship.country} · {ship.phone}
+            {ship.country}{ship.phone ? ` · ${ship.phone}` : ""}
           </div>
+          {isInternational && (
+            <Badge variant="outline" className="mt-2">
+              Utland — kontrollera tulldokument (CN22/CN23) innan bokning
+            </Badge>
+          )}
         </section>
         <section>
           <h3 className="text-sm font-medium mb-2">Innehåll</h3>
@@ -282,10 +320,36 @@ function OrderDetail({ order, draft, shipment, onChanged }: any) {
 
       {!shipment && d?.id && (
         <section className="space-y-3 pt-4 border-t">
-          <h3 className="text-sm font-medium">Fraktdetaljer (redigerbart)</h3>
-          <div className="grid sm:grid-cols-3 gap-3">
-            <div><Label>Service</Label>
-              <Input value={d.service_code ?? ""} onChange={(e) => setD({ ...d, service_code: e.target.value })} placeholder="17" /></div>
+          <h3 className="text-sm font-medium">Fraktdetaljer</h3>
+          <div className="grid sm:grid-cols-2 gap-3">
+            <div className="sm:col-span-2">
+              <Label>Tjänst</Label>
+              <Select value={serviceCode} onValueChange={(v) => setD({ ...d, service_code: v })}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {SERVICES.filter((s) => isInternational ? !s.domestic : s.domestic).map((s) => (
+                    <SelectItem key={s.code} value={s.code}>{s.code} — {s.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="sm:col-span-2">
+              <Label>Förinställd storlek</Label>
+              <Select
+                value=""
+                onValueChange={(v) => {
+                  const p = PRESET_SIZES.find((p) => p.name === v);
+                  if (p) setD({ ...d, length_cm: p.l, width_cm: p.w, height_cm: p.h });
+                }}
+              >
+                <SelectTrigger><SelectValue placeholder="Välj S / M / L eller fyll i manuellt nedan…" /></SelectTrigger>
+                <SelectContent>
+                  {PRESET_SIZES.map((p) => (
+                    <SelectItem key={p.name} value={p.name}>{p.name} — {p.l}×{p.w}×{p.h} cm</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
             <div><Label>Antal kolli</Label>
               <Input type="number" value={d.parcels ?? 1} onChange={(e) => setD({ ...d, parcels: +e.target.value })} /></div>
             <div><Label>Vikt (kg)</Label>
@@ -296,37 +360,97 @@ function OrderDetail({ order, draft, shipment, onChanged }: any) {
               <Input type="number" value={d.width_cm ?? ""} onChange={(e) => setD({ ...d, width_cm: +e.target.value })} /></div>
             <div><Label>Höjd (cm)</Label>
               <Input type="number" value={d.height_cm ?? ""} onChange={(e) => setD({ ...d, height_cm: +e.target.value })} /></div>
+            <div className="sm:col-span-2">
+              <Label>Anteckning</Label>
+              <Input value={d.notes ?? ""} onChange={(e) => setD({ ...d, notes: e.target.value })} />
+            </div>
           </div>
-          <div>
-            <Label>Anteckning</Label>
-            <Input value={d.notes ?? ""} onChange={(e) => setD({ ...d, notes: e.target.value })} />
-          </div>
-          <Button variant="outline" onClick={saveDraft}>Spara utkast</Button>
+          <Button variant="outline" size="sm" onClick={saveDraft}>Spara utkast</Button>
         </section>
       )}
 
       {shipment && (
-        <section className="pt-4 border-t text-sm space-y-2">
-          <div className="flex items-center gap-2">
-            <span className="text-muted-foreground">Tracking:</span>
-            <code>{shipment.tracking_no ?? "—"}</code>
-            {trackingUrl && (
-              <a href={trackingUrl} target="_blank" rel="noreferrer" className="text-primary inline-flex items-center gap-1 hover:underline">
-                Spåra <ExternalLink className="h-3 w-3" />
-              </a>
+        <section className="pt-4 border-t space-y-4">
+          <div className="flex items-start justify-between flex-wrap gap-3">
+            <div>
+              <div className="text-sm">
+                <span className="text-muted-foreground">Tracking:</span>{" "}
+                <code className="bg-muted px-1.5 py-0.5 rounded">{shipment.tracking_no ?? "—"}</code>
+              </div>
+              <div className="text-xs text-muted-foreground mt-1">
+                Bokad: {new Date(shipment.booked_at).toLocaleString("sv-SE")}
+              </div>
+            </div>
+            <div className="flex gap-2 flex-wrap">
+              <Button size="sm" variant="outline" onClick={refreshTracking} disabled={tracking}>
+                <RefreshCw className={`h-3.5 w-3.5 mr-1.5 ${tracking ? "animate-spin" : ""}`} />
+                Uppdatera status
+              </Button>
+              {trackingUrl && (
+                <a href={trackingUrl} target="_blank" rel="noreferrer">
+                  <Button size="sm" variant="outline">
+                    Öppna hos PostNord <ExternalLink className="h-3 w-3 ml-1" />
+                  </Button>
+                </a>
+              )}
+            </div>
+          </div>
+
+          <div>
+            <h3 className="text-sm font-medium mb-3 flex items-center gap-2">
+              <Truck className="h-4 w-4" /> Status
+              <Badge variant="secondary" className="ml-1">{shipment.status}</Badge>
+            </h3>
+            {events.length === 0 ? (
+              <div className="text-xs text-muted-foreground">
+                Inga spårningshändelser än. Klicka "Uppdatera status" för att hämta från PostNord.
+              </div>
+            ) : (
+              <ol className="relative border-l border-border ml-2 space-y-4">
+                {[...events].reverse().map((ev, idx) => {
+                  const isLatest = idx === 0;
+                  return (
+                    <li key={idx} className="ml-4">
+                      <span className={`absolute -left-1.5 flex h-3 w-3 items-center justify-center rounded-full ${isLatest ? "bg-primary ring-4 ring-primary/20" : "bg-muted-foreground/40"}`} />
+                      <div className="text-sm font-medium">{ev.status}</div>
+                      <div className="text-xs text-muted-foreground flex items-center gap-1">
+                        {ev.location && <><MapPin className="h-3 w-3" />{ev.location} ·</>}
+                        {ev.at ? new Date(ev.at).toLocaleString("sv-SE") : null}
+                      </div>
+                      {ev.description && <div className="text-xs mt-0.5">{ev.description}</div>}
+                    </li>
+                  );
+                })}
+              </ol>
             )}
           </div>
-          <div className="flex items-center gap-2">
-            <span className="text-muted-foreground">Status:</span>
-            <Badge variant="secondary">{shipment.status}</Badge>
-            <Button variant="ghost" size="sm" onClick={refreshTracking} disabled={tracking} className="h-7 px-2">
-              <RefreshCw className={`h-3 w-3 mr-1 ${tracking ? "animate-spin" : ""}`} />
-              Uppdatera status
-            </Button>
-          </div>
-          <div className="text-muted-foreground">Bokad: {new Date(shipment.booked_at).toLocaleString("sv-SE")}</div>
         </section>
       )}
+
+      <AlertDialog open={confirmOpen} onOpenChange={setConfirmOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Bekräfta bokning hos PostNord</AlertDialogTitle>
+            <AlertDialogDescription asChild>
+              <div className="space-y-3 pt-2">
+                <div className="text-sm">Du är på väg att boka en sändning hos PostNord. Detta kan inte ångras.</div>
+                <div className="bg-muted rounded p-3 text-sm space-y-1">
+                  <div><span className="text-muted-foreground">Order:</span> #{order.invoice_no ?? order.webbskap_order_id} · {order.customer_name}</div>
+                  <div><span className="text-muted-foreground">Till:</span> {ship.zipCode} {ship.city}, {ship.country}</div>
+                  <div><span className="text-muted-foreground">Tjänst:</span> {serviceCode} — {serviceLabel}</div>
+                  <div><span className="text-muted-foreground">Kolli:</span> {d.parcels ?? 1} st · {d.weight_kg ?? "?"} kg</div>
+                  {d.length_cm && <div><span className="text-muted-foreground">Mått:</span> {d.length_cm}×{d.width_cm}×{d.height_cm} cm</div>}
+                </div>
+                <div className="text-xs text-muted-foreground">Status och spårningsnummer skickas tillbaka till ordern i Webbskap automatiskt.</div>
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Avbryt</AlertDialogCancel>
+            <AlertDialogAction onClick={book}>Boka nu</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Card>
   );
 }

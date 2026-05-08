@@ -8,7 +8,7 @@ import { AuthForm } from "@/components/AuthForm";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { supabase } from "@/integrations/supabase/client";
-import { Lock } from "lucide-react";
+import { Lock, Package, Settings, LogOut } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 
 function PlanBadge({ sub, onClick }: { sub: any; onClick: () => void }) {
@@ -67,23 +67,38 @@ export default function Index() {
     );
   }
 
+  const shopUrl = tenant.subdomain ? `${tenant.subdomain}.webbskap.se` : null;
+
   return (
     <div className="min-h-screen bg-background text-foreground">
-      <header className="border-b">
-        <div className="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div>
-              <h1 className="font-semibold">PostNord-portal</h1>
-              <p className="text-xs text-muted-foreground">{tenant.display_name ?? tenant.subdomain}</p>
-            </div>
+      <header className="border-b bg-background sticky top-0 z-10">
+        <div className="max-w-6xl mx-auto px-4 h-14 flex items-center justify-between gap-4">
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="font-semibold text-sm whitespace-nowrap">PostNord-portal</div>
+            {shopUrl && (
+              <a
+                href={`https://${shopUrl}`}
+                target="_blank"
+                rel="noreferrer"
+                className="text-xs text-muted-foreground hover:text-foreground hidden sm:inline truncate"
+                title="Öppna din butik"
+              >
+                {shopUrl}
+              </a>
+            )}
             <PlanBadge sub={subscription} onClick={() => setTab("settings")} />
           </div>
-          <nav className="flex gap-1">
-            <Button variant={tab === "orders" ? "default" : "ghost"} size="sm" onClick={() => setTab("orders")}>
-              Ordrar
-            </Button>
-            <Button variant={tab === "settings" ? "default" : "ghost"} size="sm" onClick={() => setTab("settings")}>
-              Inställningar
+          <nav className="flex items-center gap-1">
+            <NavBtn active={tab === "orders"} onClick={() => setTab("orders")} icon={<Package className="h-4 w-4" />} label="Ordrar" />
+            <NavBtn active={tab === "settings"} onClick={() => setTab("settings")} icon={<Settings className="h-4 w-4" />} label="Inställningar" />
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => supabase.auth.signOut()}
+              title="Logga ut"
+              className="ml-1"
+            >
+              <LogOut className="h-4 w-4" />
             </Button>
           </nav>
         </div>
@@ -92,6 +107,19 @@ export default function Index() {
         {tab === "orders" ? <OrdersView tenant={tenant} /> : <Onboarding tenant={tenant} userId={session.user.id} onTenantUpdated={refetchTenant} />}
       </main>
     </div>
+  );
+}
+
+function NavBtn({ active, onClick, icon, label }: { active: boolean; onClick: () => void; icon: React.ReactNode; label: string }) {
+  return (
+    <button
+      onClick={onClick}
+      className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm transition whitespace-nowrap ${
+        active ? "bg-muted font-medium" : "text-muted-foreground hover:bg-muted/60"
+      }`}
+    >
+      {icon}<span className="hidden sm:inline">{label}</span>
+    </button>
   );
 }
 
