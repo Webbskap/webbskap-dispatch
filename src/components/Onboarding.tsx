@@ -343,6 +343,21 @@ export function Onboarding({ tenant, userId, onTenantUpdated }: { tenant: Tenant
               <p className="text-xs text-muted-foreground mt-1">17 = Mypack Home, 18 = Parcel, 19 = Mypack Collect</p>
             </div>
             <div>
+              <Label>Etikettformat</Label>
+              <Select
+                value={pn.default_label_format}
+                onValueChange={(v) => setPn({ ...pn, default_label_format: v })}
+              >
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="A4">PDF — A4 (vanlig skrivare)</SelectItem>
+                  <SelectItem value="A5">PDF — A5</SelectItem>
+                  <SelectItem value="A6">PDF — A6 (4×6", etikettrulle)</SelectItem>
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground mt-1">Används vid bokning av nya fraktsedlar.</p>
+            </div>
+            <div>
               <h3 className="text-sm font-medium mb-2">Avsändare</h3>
               <div className="grid sm:grid-cols-2 gap-3">
                 <div><Label>Företag</Label>
