@@ -32,10 +32,12 @@ export function useSubscription(userId: string | undefined) {
 
   useEffect(() => {
     if (!userId) return;
-    const ch = supabase
-      .channel(`subs-${userId}`)
-      .on("postgres_changes", { event: "*", schema: "public", table: "subscriptions", filter: `user_id=eq.${userId}` }, () => refetch())
-      .subscribe();
+    const ch = supabase.channel(`subs-${userId}-${Math.random().toString(36).slice(2)}`);
+    ch.on(
+      "postgres_changes",
+      { event: "*", schema: "public", table: "subscriptions", filter: `user_id=eq.${userId}` },
+      () => refetch()
+    ).subscribe();
     return () => { supabase.removeChannel(ch); };
     // eslint-disable-next-line
   }, [userId]);
