@@ -114,20 +114,25 @@ export function Onboarding({ tenant, userId, onTenantUpdated }: { tenant: Tenant
   };
 
   const validateCustomerNumber = async () => {
-    if (!pn.customer_number || !pn.api_key) {
-      toast.error("Fyll i API-nyckel och kundnummer först");
+    if (!pn.customer_number) {
+      toast.error("Fyll i kundnummer först");
       return;
     }
     setValidating(true);
     setCnValid(null);
     const { data, error } = await supabase.functions.invoke("validate-customer-number", {
-      body: { customer_number: pn.customer_number, country_code: pn.sender_country, api_key: pn.api_key },
+      body: {
+        customer_number: pn.customer_number,
+        country_code: pn.sender_country,
+        api_key: pn.api_key || undefined,
+        environment: pn.environment,
+      },
     });
     setValidating(false);
-    if (error) { toast.error("Validering misslyckades"); return; }
+    if (error) { toast.error("Validering misslyckades: " + error.message); return; }
     setCnValid(!!data?.valid);
     if (data?.valid) toast.success("Kundnummer giltigt");
-    else toast.error("Kundnummer kunde inte verifieras");
+    else toast.error(`Kundnummer kunde inte verifieras (status ${data?.status ?? "?"})`);
   };
 
   const prefillFromWebbskap = async () => {
