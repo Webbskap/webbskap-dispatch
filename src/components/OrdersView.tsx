@@ -114,8 +114,6 @@ export function OrdersView({ tenant }: { tenant: Tenant }) {
           <FilterChip active={filter === "booked"} count={counts.booked} onClick={() => setFilter("booked")}>Bokade</FilterChip>
           <FilterChip active={filter === "shipped"} count={counts.shipped} onClick={() => setFilter("shipped")}>Skickade</FilterChip>
         </div>
-        <div className="flex items-center gap-2 text-xs">
-        </div>
         <Button variant="outline" size="icon" onClick={refresh} disabled={refreshing} aria-label="Uppdatera">
           <RefreshCw className={`h-4 w-4 ${refreshing ? "animate-spin" : ""}`} />
         </Button>
