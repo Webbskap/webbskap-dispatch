@@ -56,6 +56,7 @@ export function Onboarding({ tenant, userId, onTenantUpdated }: { tenant: Tenant
     sender_name: "", sender_company: "", sender_address: "",
     sender_zip: "", sender_city: "", sender_country: "SE",
     sender_phone: "", sender_email: "",
+    environment: "sandbox" as "sandbox" | "live",
   });
   const [saving, setSaving] = useState(false);
   const [advancedOpen, setAdvancedOpen] = useState(false);
