@@ -239,10 +239,37 @@ export function Onboarding({ tenant, userId, onTenantUpdated }: { tenant: Tenant
             Hämta dessa från ditt PostNord-avtal. Detta är allt vi behöver för att börja boka frakt.
           </p>
         </div>
+
+        <div>
+          <Label>Miljö</Label>
+          <div className="flex gap-2 mt-1">
+            <Button
+              type="button"
+              size="sm"
+              variant={pn.environment === "sandbox" ? "default" : "outline"}
+              onClick={() => { setPn({ ...pn, environment: "sandbox" }); setCnValid(null); }}
+            >
+              Sandbox (test)
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              variant={pn.environment === "live" ? "default" : "outline"}
+              onClick={() => { setPn({ ...pn, environment: "live" }); setCnValid(null); }}
+            >
+              Live (skarpt)
+            </Button>
+          </div>
+          <p className="text-xs text-muted-foreground mt-1">
+            Använd <strong>Sandbox</strong> för att testa hela flödet utan att boka riktiga försändelser.
+            Du kan lämna API-nyckeln tom för att använda vår gemensamma sandbox-nyckel.
+          </p>
+        </div>
+
         <div className="grid sm:grid-cols-2 gap-3">
           <div>
-            <Label>API-nyckel</Label>
-            <Input value={pn.api_key} onChange={(e) => { setPn({ ...pn, api_key: e.target.value }); setCnValid(null); }} placeholder="Klistra in från PostNord" />
+            <Label>API-nyckel {pn.environment === "sandbox" && <span className="text-xs text-muted-foreground">(valfri i sandbox)</span>}</Label>
+            <Input value={pn.api_key} onChange={(e) => { setPn({ ...pn, api_key: e.target.value }); setCnValid(null); }} placeholder={pn.environment === "sandbox" ? "Lämna tom för att använda vår sandbox-nyckel" : "Klistra in från PostNord"} />
           </div>
           <div>
             <Label>Kundnummer</Label>
