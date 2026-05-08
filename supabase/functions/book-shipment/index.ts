@@ -132,7 +132,7 @@ Deno.serve(async (req) => {
     const senderZip = clean(senderOverride?.zip) ?? clean(pnCfg.sender_zip);
     const senderCity = clean(senderOverride?.city) ?? clean(pnCfg.sender_city);
     const senderCountry = (clean(senderOverride?.country) ?? clean(pnCfg.sender_country) ?? "SE").toUpperCase();
-    const senderPhone = clean(senderOverride?.phone) ?? clean(pnCfg.sender_phone);
+    const senderPhoneRaw = clean(senderOverride?.phone) ?? clean(pnCfg.sender_phone);
     const senderEmail = clean(senderOverride?.email) ?? clean(pnCfg.sender_email);
 
     if (!senderAddress || !senderZip || !senderCity) {
@@ -160,6 +160,9 @@ Deno.serve(async (req) => {
       return undefined;
     };
     const consigneeSms = consigneePhone ? toE164(consigneePhone, consigneeCountry) : undefined;
+    // Normalise sender phone too — PostNord requires E.164 here as well, otherwise
+    // they auto-correct it and emit a handlingResponse warning.
+    const senderPhone = senderPhoneRaw ? (toE164(senderPhoneRaw, senderCountry) ?? senderPhoneRaw) : undefined;
 
     if (!consigneeName || !consigneeAddress || !consigneeZip || !consigneeCity) {
       return jsonResp({ error: "consignee_incomplete", details: "Mottagarens namn, adress, postnummer och ort krävs" }, 400);
@@ -340,32 +343,96 @@ Deno.serve(async (req) => {
       }, 502);
     }
 
+    // Tracking number (itemId). PostNord puts it in different places depending
+    // on the endpoint variant. The /v3/edi/labels/pdf response shape:
+    //   bookingResponse.idInformation[*].ids[*]  (idType="itemId")
+    // Earlier-style responses also seen:
+    //   shipment[*].goodsItem[*].items[*].itemId
+    const idsArr: any[] = pnJson?.bookingResponse?.idInformation ?? [];
+    const itemIdEntry = idsArr
+      .flatMap((info: any) => info?.ids ?? [])
+      .find((x: any) => x?.idType === "itemId" || x?.idType === "ITEM_ID");
     const trackingNo: string | null =
-      pnJson?.shipment?.[0]?.shipmentId
+      itemIdEntry?.value
+      ?? pnJson?.bookingResponse?.idInformation?.[0]?.ids?.[0]?.value
+      ?? pnJson?.shipment?.[0]?.goodsItem?.[0]?.items?.[0]?.itemId
+      ?? pnJson?.shipment?.[0]?.shipmentId
       ?? pnJson?.shipment?.shipmentId
       ?? pnJson?.parcels?.[0]?.parcelNumber
-      ?? pnJson?.shipment?.[0]?.goodsItem?.[0]?.items?.[0]?.itemId
       ?? pnJson?.trackingNumber
       ?? null;
-    const pdfB64: string | null =
-      pnJson?.label?.pdf
+
+    // Tracking URL — PostNord usually returns it directly.
+    const trackingUrl: string | null =
+      idsArr.flatMap((info: any) => info?.urls ?? [])
+            .find((u: any) => u?.type === "TRACKING")?.url
+      ?? (trackingNo ? `https://tracking.postnord.com/se/?id=${trackingNo}` : null);
+
+    // PDF — first try inline base64 (printout.data), then fall back to a
+    // PostNord URL we have to fetch ourselves.
+    const printout: any = pnJson?.labelPrintout?.[0]?.printout
+      ?? pnJson?.labelPrintout?.printout
+      ?? null;
+    let pdfB64: string | null =
+      printout?.data
+      ?? printout?.dataValue
+      ?? pnJson?.label?.pdf
       ?? pnJson?.pdf
       ?? pnJson?.shipment?.[0]?.label?.pdf
       ?? null;
+    // Reject obvious placeholder values from PostNord schema examples
+    if (pdfB64 && (pdfB64 === "string" || pdfB64.length < 100)) pdfB64 = null;
 
+    const labelUrl: string | null =
+      printout?.uriResource
+      ?? printout?.uriStoreLabel
+      ?? null;
+
+    // Resolve to PDF bytes — either from base64 (inline) or by fetching the URL.
+    const labelStoragePath = `${draft.tenant_id}/${draft.id}.pdf`;
     let pdfPath: string | null = null;
+    let pdfBytes: Uint8Array | null = null;
+
     if (pdfB64) {
       try {
-        const bin = Uint8Array.from(atob(pdfB64), (c) => c.charCodeAt(0));
-        const path = `${draft.tenant_id}/${draft.id}.pdf`;
-        const up = await admin.storage.from("shipment-labels").upload(path, bin, {
-          contentType: "application/pdf", upsert: true,
-        });
-        if (!up.error) pdfPath = path;
-        else console.error("Label upload failed", up.error);
+        pdfBytes = Uint8Array.from(atob(pdfB64), (c) => c.charCodeAt(0));
       } catch (e) {
-        console.error("Label decode/upload error", e);
+        console.error("Label base64 decode error", e);
       }
+    } else if (labelUrl) {
+      try {
+        const r = await fetch(`${labelUrl}${labelUrl.includes("?") ? "&" : "?"}apikey=${encodeURIComponent(apiKey)}`, {
+          headers: { Accept: "application/pdf, application/octet-stream, */*" },
+        });
+        if (r.ok) {
+          const ct = r.headers.get("content-type") ?? "";
+          if (ct.includes("application/pdf") || ct.includes("octet-stream")) {
+            pdfBytes = new Uint8Array(await r.arrayBuffer());
+          } else {
+            // Some PostNord variants wrap PDF base64 in a JSON envelope at the URL too
+            const txt = await r.text();
+            try {
+              const j = JSON.parse(txt);
+              const inner: string | undefined = j?.printout?.data ?? j?.data;
+              if (inner && inner !== "string" && inner.length > 100) {
+                pdfBytes = Uint8Array.from(atob(inner), (c) => c.charCodeAt(0));
+              }
+            } catch { /* not JSON */ }
+          }
+        } else {
+          console.error("Label fetch failed", r.status, (await r.text()).slice(0, 500));
+        }
+      } catch (e) {
+        console.error("Label fetch error", e);
+      }
+    }
+
+    if (pdfBytes) {
+      const up = await admin.storage.from("shipment-labels").upload(labelStoragePath, pdfBytes, {
+        contentType: "application/pdf", upsert: true,
+      });
+      if (!up.error) pdfPath = labelStoragePath;
+      else console.error("Label storage upload failed", up.error);
     }
 
     const { data: shipmentRow } = await admin.from("shipments").insert({
