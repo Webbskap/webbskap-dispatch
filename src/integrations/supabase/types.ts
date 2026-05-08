@@ -295,6 +295,7 @@ export type Database = {
           api_key: string | null
           customer_number: string | null
           default_additional_services: Json
+          default_label_format: string
           default_service_code: string | null
           environment: string
           sender_address: string | null
@@ -312,6 +313,7 @@ export type Database = {
           api_key?: string | null
           customer_number?: string | null
           default_additional_services?: Json
+          default_label_format?: string
           default_service_code?: string | null
           environment?: string
           sender_address?: string | null
@@ -329,6 +331,7 @@ export type Database = {
           api_key?: string | null
           customer_number?: string | null
           default_additional_services?: Json
+          default_label_format?: string
           default_service_code?: string | null
           environment?: string
           sender_address?: string | null
