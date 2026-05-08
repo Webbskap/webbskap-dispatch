@@ -8,7 +8,7 @@ import { AuthForm } from "@/components/AuthForm";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { supabase } from "@/integrations/supabase/client";
-import { Lock } from "lucide-react";
+import { Lock, Package, Settings, LogOut } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 
 function PlanBadge({ sub, onClick }: { sub: any; onClick: () => void }) {
