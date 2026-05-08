@@ -91,6 +91,7 @@ export default function Index() {
           </div>
           <nav className="flex items-center gap-1">
             <NavBtn active={tab === "orders"} onClick={() => setTab("orders")} icon={<Package className="h-4 w-4" />} label="Ordrar" />
+            <NavBtn active={tab === "stats"} onClick={() => setTab("stats")} icon={<BarChart3 className="h-4 w-4" />} label="Statistik" />
             <NavBtn active={tab === "settings"} onClick={() => setTab("settings")} icon={<Settings className="h-4 w-4" />} label="Inställningar" />
             <Button
               variant="ghost"
