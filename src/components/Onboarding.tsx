@@ -165,7 +165,7 @@ export function Onboarding({ tenant, userId, onTenantUpdated }: { tenant: Tenant
 
   const ready = {
     subdomain: !!tenant.subdomain,
-    postnord: !!(pn.api_key && pn.customer_number),
+    postnord: !!(pn.customer_number && (pn.api_key || pn.environment === "sandbox")),
     webhook: !!wb.webhook_secret,
     sender: !!(pn.sender_address && pn.sender_zip && pn.sender_city),
     receivedEvent: !!lastEvent,
