@@ -191,34 +191,38 @@ Deno.serve(async (req) => {
     const senderRef = String(order.invoice_no ?? order.webbskap_order_id ?? draft.id);
     const shipmentId = "0";
 
-    const itemDimensions = (draft.length_cm && draft.width_cm && draft.height_cm)
-      ? {
-          length: { value: Number(draft.length_cm), unit: "CMT" as const },
-          width: { value: Number(draft.width_cm), unit: "CMT" as const },
-          height: { value: Number(draft.height_cm), unit: "CMT" as const },
-        }
-      : undefined;
+    // PostNord requires messageId to be max 36 chars. Use timestamp + short random suffix.
+    const messageId = `${now.getTime()}-${Math.random().toString(36).slice(2, 8)}`;
 
     const perItemWeight = Number((weightKg / parcelCount).toFixed(3));
 
+    // Note: PostNord v3 EDI does not accept item.measurements (length/width/height)
+    // — dimensions are not part of the schema for /v3/edi/labels/pdf. They are
+    // ignored at the carrier level and rejected by validation if sent.
     const goodsItem = [{
       packageTypeCode: "PC" as const,
       items: Array.from({ length: parcelCount }, () => ({
         itemIdentification: { itemId: "0", itemIdType: "SSCC" as const },
         grossWeight: { value: perItemWeight, unit: "KGM" as const },
-        ...(itemDimensions ? { measurements: itemDimensions } : {}),
       })),
     }];
 
     const shipment: PostNordShipment = {
       shipmentIdentification: { shipmentId },
       dateAndTimes: { loadingDate },
-      service: { basicServiceCode: serviceCode },
-      ...(additionalServiceCodes.length
-        ? { additionalServices: additionalServiceCodes.map((code) => ({ additionalServiceCode: code })) }
-        : {}),
+      // Additional service codes go INSIDE the service object as plain strings
+      service: {
+        basicServiceCode: serviceCode,
+        ...(additionalServiceCodes.length ? { additionalServiceCode: additionalServiceCodes } : {}),
+      },
+      freeText: [],
       numberOfPackages: { value: parcelCount },
       totalGrossWeight: { value: weightKg, unit: "KGM" },
+      // References use referenceNo / referenceType (not referenceCodeQualifier / reference).
+      // CU = Customer reference. Shipping Software ID is sent via `application` block, not here.
+      references: [
+        { referenceNo: senderRef, referenceType: "CU" },
+      ],
       parties: {
         consignor: {
           issuerCode: issuer,
@@ -259,28 +263,20 @@ Deno.serve(async (req) => {
             },
           },
         },
-        freightPayer: {
-          issuerCode: issuer,
-          partyIdentification: { partyId: pnCfg.customer_number, partyIdType: "160" },
-        },
+        // Note: no freightPayer block — PostNord v3 EDI uses consignor.partyIdentification
+        // for billing identification. A separate freightPayer is not part of the schema.
       },
       goodsItem,
-      ...(POSTNORD_APP_ID > 0
-        ? {
-            references: [
-              { referenceCodeQualifier: "AGK", reference: String(POSTNORD_APP_ID) },
-              { referenceCodeQualifier: "CU", reference: senderRef },
-            ],
-          }
-        : { references: [{ referenceCodeQualifier: "CU", reference: senderRef }] }),
     };
 
     const ediBody: PostNordEdiBody = {
       messageDate,
       messageFunction: "Instruction",
-      messageId: `${draft.tenant_id}-${draft.id}-${now.getTime()}`,
+      messageId,
+      // Application ID is required by PostNord. Use the configured value, or fall back
+      // to the well-known sandbox/test value 9999 (per PostNord examples) if not set.
       application: {
-        applicationId: POSTNORD_APP_ID,
+        applicationId: POSTNORD_APP_ID > 0 ? POSTNORD_APP_ID : 9999,
         name: POSTNORD_APP_NAME,
         version: POSTNORD_APP_VERSION,
       },

@@ -73,36 +73,33 @@ export interface PostNordParty {
 
 export interface PostNordGoodsItem {
   packageTypeCode: "PC" | "PE" | "OA" | "AF" | "OF" | "EN" | "BX" | "PO" | "CW";
+  goodsDescription?: string;
   items: Array<{
     itemIdentification: { itemId: string; itemIdType: "SSCC" | "S10" | "DPD" | "ZZZ" };
     grossWeight: { value: number; unit: "KGM" };
-    measurements?: {
-      length?: { value: number; unit: "CMT" };
-      width?: { value: number; unit: "CMT" };
-      height?: { value: number; unit: "CMT" };
-    };
+    references?: Array<{ referenceNo: string; referenceType: string }>;
   }>;
 }
 
 export interface PostNordShipment {
   shipmentIdentification: { shipmentId: string };
   dateAndTimes: { loadingDate: string };
-  service: { basicServiceCode: string };
-  additionalServices?: Array<{ additionalServiceCode: string }>;
-  freeText?: Array<{ textSubjectCode: string; freeText: string }>;
+  service: {
+    basicServiceCode: string;
+    additionalServiceCode?: string[];
+  };
+  freeText?: Array<{ textSubjectCode: string; freeText: string }> | [];
   numberOfPackages: { value: number };
   totalGrossWeight: { value: number; unit: "KGM" };
+  references?: Array<{ referenceNo: string; referenceType: string }>;
   parties: {
     consignor: PostNordParty;
     consignee: PostNordParty;
-    freightPayer?: {
-      issuerCode: IssuerCode;
-      partyIdentification: { partyId: string; partyIdType: "160" };
-    };
-    originalShipper?: PostNordParty;
+    deliveryParty?: PostNordParty;
+    pickupParty?: PostNordParty;
+    returnParty?: PostNordParty;
   };
   goodsItem: PostNordGoodsItem[];
-  references?: Array<{ referenceCodeQualifier: string; reference: string }>;
 }
 
 export interface PostNordEdiBody {
