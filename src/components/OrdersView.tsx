@@ -189,7 +189,13 @@ function OrderDetail({ order, draft, shipment, onChanged }: any) {
   const [d, setD] = useState<any>(draft ?? {});
   const [busy, setBusy] = useState(false);
   const [tracking, setTracking] = useState(false);
+  const [confirmOpen, setConfirmOpen] = useState(false);
   useEffect(() => setD(draft ?? {}), [draft?.id]);
+
+  const ship = order.shipping_address ?? {};
+  const isInternational = ship.country && String(ship.country).toUpperCase() !== "SE";
+  const serviceCode = d.service_code || "17";
+  const serviceLabel = SERVICES.find((s) => s.code === serviceCode)?.name ?? serviceCode;
 
   const ship = order.shipping_address ?? {};
 
