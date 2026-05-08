@@ -53,6 +53,7 @@ export function Onboarding({ tenant, userId, onTenantUpdated }: { tenant: Tenant
   const [savingSubdomain, setSavingSubdomain] = useState(false);
   const [pn, setPn] = useState({
     api_key: "", customer_number: "", default_service_code: "17",
+    default_label_format: "A4",
     sender_name: "", sender_company: "", sender_address: "",
     sender_zip: "", sender_city: "", sender_country: "SE",
     sender_phone: "", sender_email: "",
