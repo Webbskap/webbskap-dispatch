@@ -160,6 +160,9 @@ Deno.serve(async (req) => {
       return undefined;
     };
     const consigneeSms = consigneePhone ? toE164(consigneePhone, consigneeCountry) : undefined;
+    // Normalise sender phone too — PostNord requires E.164 here as well, otherwise
+    // they auto-correct it and emit a handlingResponse warning.
+    const senderPhone = senderPhoneRaw ? (toE164(senderPhoneRaw, senderCountry) ?? senderPhoneRaw) : undefined;
 
     if (!consigneeName || !consigneeAddress || !consigneeZip || !consigneeCity) {
       return jsonResp({ error: "consignee_incomplete", details: "Mottagarens namn, adress, postnummer och ort krävs" }, 400);
