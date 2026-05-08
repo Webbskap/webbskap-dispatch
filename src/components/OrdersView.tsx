@@ -196,9 +196,6 @@ function OrderDetail({ order, draft, shipment, onChanged }: any) {
   const isInternational = ship.country && String(ship.country).toUpperCase() !== "SE";
   const serviceCode = d.service_code || "17";
   const serviceLabel = SERVICES.find((s) => s.code === serviceCode)?.name ?? serviceCode;
-
-  const ship = order.shipping_address ?? {};
-
   const saveDraft = async () => {
     if (!d?.id) return;
     const { error } = await supabase.from("shipment_drafts").update({
