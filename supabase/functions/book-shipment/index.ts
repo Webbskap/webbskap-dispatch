@@ -165,10 +165,44 @@ Deno.serve(async (req) => {
       return jsonResp({ error: "consignee_incomplete", details: "Mottagarens namn, adress, postnummer och ort krävs" }, 400);
     }
 
-    const serviceCode = clean(draft.service_code) ?? clean(pnCfg.default_service_code) ?? "17";
-    const additionalServiceCodes: string[] = Array.isArray(draft.additional_services)
-      ? (draft.additional_services as any[]).map((s) => (typeof s === "string" ? s : s?.code)).filter((s): s is string => typeof s === "string")
+    // PostNord basic service codes are 2-digit numbers ("17", "18", "19", "86" etc.).
+    // Additional service codes start with a letter ("C7", "A3", "F1" etc.). Be defensive:
+    // if either column has the wrong type of code, fix it before sending to PostNord.
+    const isAdditional = (s: string | null | undefined): boolean => !!s && /^[A-Z]/.test(s);
+    const isBasic = (s: string | null | undefined): boolean => !!s && /^\d+$/.test(s);
+
+    let serviceCode = clean(draft.service_code) ?? null;
+    let additionalServiceCodes: string[] = Array.isArray(draft.additional_services)
+      ? (draft.additional_services as any[])
+          .map((s) => (typeof s === "string" ? s : s?.code))
+          .filter((s): s is string => typeof s === "string")
       : [];
+
+    // If service_code on the draft is actually an additional service (e.g. "C7"),
+    // move it into the additional list and use the config default for the basic code.
+    if (serviceCode && isAdditional(serviceCode)) {
+      if (!additionalServiceCodes.includes(serviceCode)) {
+        additionalServiceCodes.push(serviceCode);
+      }
+      serviceCode = null;
+    }
+
+    // If still no basic code, fall back to the tenant default. Final fallback "17".
+    if (!serviceCode || !isBasic(serviceCode)) {
+      const cfgDefault = clean(pnCfg.default_service_code);
+      serviceCode = cfgDefault && isBasic(cfgDefault) ? cfgDefault : "17";
+    }
+
+    // Merge in default additional services from config, deduplicated.
+    const cfgAddls: unknown = (pnCfg as any).default_additional_services;
+    if (Array.isArray(cfgAddls)) {
+      for (const a of cfgAddls) {
+        const code = typeof a === "string" ? a : (a as any)?.code;
+        if (typeof code === "string" && isAdditional(code) && !additionalServiceCodes.includes(code)) {
+          additionalServiceCodes.push(code);
+        }
+      }
+    }
 
     const ruleErr = validateServiceRules(
       serviceCode,
