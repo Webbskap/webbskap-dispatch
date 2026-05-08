@@ -56,6 +56,7 @@ export function Onboarding({ tenant, userId, onTenantUpdated }: { tenant: Tenant
     sender_name: "", sender_company: "", sender_address: "",
     sender_zip: "", sender_city: "", sender_country: "SE",
     sender_phone: "", sender_email: "",
+    environment: "sandbox" as "sandbox" | "live",
   });
   const [saving, setSaving] = useState(false);
   const [advancedOpen, setAdvancedOpen] = useState(false);
@@ -73,7 +74,7 @@ export function Onboarding({ tenant, userId, onTenantUpdated }: { tenant: Tenant
           .eq("tenant_id", tenant.id).order("received_at", { ascending: false }).limit(1).maybeSingle(),
       ]);
       if (w) setWb({ website_api_key: w.website_api_key ?? "", webhook_secret: w.webhook_secret ?? "" });
-      if (p) setPn((prev) => ({ ...prev, ...p }));
+      if (p) setPn((prev) => ({ ...prev, ...p, environment: ((p as any).environment ?? "sandbox") as "sandbox" | "live" }));
       if (ev) setLastEvent(ev);
     })();
     // eslint-disable-next-line
@@ -113,20 +114,25 @@ export function Onboarding({ tenant, userId, onTenantUpdated }: { tenant: Tenant
   };
 
   const validateCustomerNumber = async () => {
-    if (!pn.customer_number || !pn.api_key) {
-      toast.error("Fyll i API-nyckel och kundnummer först");
+    if (!pn.customer_number) {
+      toast.error("Fyll i kundnummer först");
       return;
     }
     setValidating(true);
     setCnValid(null);
     const { data, error } = await supabase.functions.invoke("validate-customer-number", {
-      body: { customer_number: pn.customer_number, country_code: pn.sender_country, api_key: pn.api_key },
+      body: {
+        customer_number: pn.customer_number,
+        country_code: pn.sender_country,
+        api_key: pn.api_key || undefined,
+        environment: pn.environment,
+      },
     });
     setValidating(false);
-    if (error) { toast.error("Validering misslyckades"); return; }
+    if (error) { toast.error("Validering misslyckades: " + error.message); return; }
     setCnValid(!!data?.valid);
     if (data?.valid) toast.success("Kundnummer giltigt");
-    else toast.error("Kundnummer kunde inte verifieras");
+    else toast.error(`Kundnummer kunde inte verifieras (status ${data?.status ?? "?"})`);
   };
 
   const prefillFromWebbskap = async () => {
@@ -159,7 +165,7 @@ export function Onboarding({ tenant, userId, onTenantUpdated }: { tenant: Tenant
 
   const ready = {
     subdomain: !!tenant.subdomain,
-    postnord: !!(pn.api_key && pn.customer_number),
+    postnord: !!(pn.customer_number && (pn.api_key || pn.environment === "sandbox")),
     webhook: !!wb.webhook_secret,
     sender: !!(pn.sender_address && pn.sender_zip && pn.sender_city),
     receivedEvent: !!lastEvent,
@@ -233,10 +239,37 @@ export function Onboarding({ tenant, userId, onTenantUpdated }: { tenant: Tenant
             Hämta dessa från ditt PostNord-avtal. Detta är allt vi behöver för att börja boka frakt.
           </p>
         </div>
+
+        <div>
+          <Label>Miljö</Label>
+          <div className="flex gap-2 mt-1">
+            <Button
+              type="button"
+              size="sm"
+              variant={pn.environment === "sandbox" ? "default" : "outline"}
+              onClick={() => { setPn({ ...pn, environment: "sandbox" }); setCnValid(null); }}
+            >
+              Sandbox (test)
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              variant={pn.environment === "live" ? "default" : "outline"}
+              onClick={() => { setPn({ ...pn, environment: "live" }); setCnValid(null); }}
+            >
+              Live (skarpt)
+            </Button>
+          </div>
+          <p className="text-xs text-muted-foreground mt-1">
+            Använd <strong>Sandbox</strong> för att testa hela flödet utan att boka riktiga försändelser.
+            Du kan lämna API-nyckeln tom för att använda vår gemensamma sandbox-nyckel.
+          </p>
+        </div>
+
         <div className="grid sm:grid-cols-2 gap-3">
           <div>
-            <Label>API-nyckel</Label>
-            <Input value={pn.api_key} onChange={(e) => { setPn({ ...pn, api_key: e.target.value }); setCnValid(null); }} placeholder="Klistra in från PostNord" />
+            <Label>API-nyckel {pn.environment === "sandbox" && <span className="text-xs text-muted-foreground">(valfri i sandbox)</span>}</Label>
+            <Input value={pn.api_key} onChange={(e) => { setPn({ ...pn, api_key: e.target.value }); setCnValid(null); }} placeholder={pn.environment === "sandbox" ? "Lämna tom för att använda vår sandbox-nyckel" : "Klistra in från PostNord"} />
           </div>
           <div>
             <Label>Kundnummer</Label>
