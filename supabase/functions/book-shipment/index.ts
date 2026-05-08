@@ -321,7 +321,11 @@ Deno.serve(async (req) => {
       shipment: [shipment],
     };
 
-    const pnUrl = `${postnordBase(env)}/rest/shipment/v3/edi/labels/pdf?apikey=${encodeURIComponent(apiKey)}&paperSize=A4`;
+    const allowedFormats = new Set(["A4", "A5", "A6"]);
+    const cfgFormat = String((pnCfg as any).default_label_format ?? "A4").toUpperCase();
+    const paperSize = allowedFormats.has(cfgFormat) ? cfgFormat : "A4";
+
+    const pnUrl = `${postnordBase(env)}/rest/shipment/v3/edi/labels/pdf?apikey=${encodeURIComponent(apiKey)}&paperSize=${paperSize}`;
     const pnRes = await fetch(pnUrl, {
       method: "POST",
       headers: { "Content-Type": "application/json", "Accept": "application/json" },
