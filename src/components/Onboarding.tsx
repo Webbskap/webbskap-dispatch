@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { BillingSection } from "@/components/BillingSection";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { ChevronDown, Copy, Check, CheckCircle2, AlertCircle, Loader2, Sparkles } from "lucide-react";
 
@@ -53,6 +54,7 @@ export function Onboarding({ tenant, userId, onTenantUpdated }: { tenant: Tenant
   const [savingSubdomain, setSavingSubdomain] = useState(false);
   const [pn, setPn] = useState({
     api_key: "", customer_number: "", default_service_code: "17",
+    default_label_format: "A4",
     sender_name: "", sender_company: "", sender_address: "",
     sender_zip: "", sender_city: "", sender_country: "SE",
     sender_phone: "", sender_email: "",
@@ -339,6 +341,21 @@ export function Onboarding({ tenant, userId, onTenantUpdated }: { tenant: Tenant
               <Label>Default service code</Label>
               <Input value={pn.default_service_code} onChange={(e) => setPn({ ...pn, default_service_code: e.target.value })} />
               <p className="text-xs text-muted-foreground mt-1">17 = Mypack Home, 18 = Parcel, 19 = Mypack Collect</p>
+            </div>
+            <div>
+              <Label>Etikettformat</Label>
+              <Select
+                value={pn.default_label_format}
+                onValueChange={(v) => setPn({ ...pn, default_label_format: v })}
+              >
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="A4">PDF — A4 (vanlig skrivare)</SelectItem>
+                  <SelectItem value="A5">PDF — A5</SelectItem>
+                  <SelectItem value="A6">PDF — A6 (4×6", etikettrulle)</SelectItem>
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground mt-1">Används vid bokning av nya fraktsedlar.</p>
             </div>
             <div>
               <h3 className="text-sm font-medium mb-2">Avsändare</h3>

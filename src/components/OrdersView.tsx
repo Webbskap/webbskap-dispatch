@@ -42,35 +42,19 @@ export function OrdersView({ tenant }: { tenant: Tenant }) {
   const [refreshing, setRefreshing] = useState(false);
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState<Filter>("all");
-  const [labelFormat, setLabelFormat] = useState<string>("A4");
-  const [savingFormat, setSavingFormat] = useState(false);
 
   const refresh = async () => {
     setRefreshing(true);
-    const [{ data: o }, { data: d }, { data: s }, { data: cfg }] = await Promise.all([
+    const [{ data: o }, { data: d }, { data: s }] = await Promise.all([
       supabase.from("orders").select("*").eq("tenant_id", tenant.id).order("created_at", { ascending: false }).limit(200),
       supabase.from("shipment_drafts").select("*").eq("tenant_id", tenant.id),
       supabase.from("shipments").select("*").eq("tenant_id", tenant.id),
-      supabase.from("tenant_postnord_config").select("default_label_format").eq("tenant_id", tenant.id).maybeSingle(),
     ]);
     setOrders(o ?? []);
     setDrafts(Object.fromEntries((d ?? []).map((r) => [r.order_id, r])));
     setShipments(Object.fromEntries((s ?? []).map((r) => [r.order_id, r])));
-    if ((cfg as any)?.default_label_format) setLabelFormat((cfg as any).default_label_format);
     setLoading(false);
     setRefreshing(false);
-  };
-
-  const updateLabelFormat = async (v: string) => {
-    setLabelFormat(v);
-    setSavingFormat(true);
-    const { error } = await supabase
-      .from("tenant_postnord_config")
-      .update({ default_label_format: v })
-      .eq("tenant_id", tenant.id);
-    setSavingFormat(false);
-    if (error) toast.error("Kunde inte spara etikettformat");
-    else toast.success(`Etikettformat: ${v}`);
   };
 
   useEffect(() => {
@@ -129,17 +113,6 @@ export function OrdersView({ tenant }: { tenant: Tenant }) {
           <FilterChip active={filter === "unbooked"} count={counts.unbooked} onClick={() => setFilter("unbooked")}>Att boka</FilterChip>
           <FilterChip active={filter === "booked"} count={counts.booked} onClick={() => setFilter("booked")}>Bokade</FilterChip>
           <FilterChip active={filter === "shipped"} count={counts.shipped} onClick={() => setFilter("shipped")}>Skickade</FilterChip>
-        </div>
-        <div className="flex items-center gap-2 text-xs">
-          <span className="text-muted-foreground hidden sm:inline">Etikett:</span>
-          <Select value={labelFormat} onValueChange={updateLabelFormat} disabled={savingFormat}>
-            <SelectTrigger className="h-9 w-28 text-xs"><SelectValue /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="A4">PDF — A4</SelectItem>
-              <SelectItem value="A5">PDF — A5</SelectItem>
-              <SelectItem value="A6">PDF — A6</SelectItem>
-            </SelectContent>
-          </Select>
         </div>
         <Button variant="outline" size="icon" onClick={refresh} disabled={refreshing} aria-label="Uppdatera">
           <RefreshCw className={`h-4 w-4 ${refreshing ? "animate-spin" : ""}`} />
