@@ -132,7 +132,7 @@ Deno.serve(async (req) => {
     const senderZip = clean(senderOverride?.zip) ?? clean(pnCfg.sender_zip);
     const senderCity = clean(senderOverride?.city) ?? clean(pnCfg.sender_city);
     const senderCountry = (clean(senderOverride?.country) ?? clean(pnCfg.sender_country) ?? "SE").toUpperCase();
-    const senderPhone = clean(senderOverride?.phone) ?? clean(pnCfg.sender_phone);
+    const senderPhoneRaw = clean(senderOverride?.phone) ?? clean(pnCfg.sender_phone);
     const senderEmail = clean(senderOverride?.email) ?? clean(pnCfg.sender_email);
 
     if (!senderAddress || !senderZip || !senderCity) {
