@@ -117,10 +117,31 @@ Deno.serve(async (req) => {
         });
       }
 
+      const webbskapOrderId = String(order.id ?? order.invoiceNo);
+
+      // Loop guard: if we PATCHed Webbskap recently, the order_updated event
+      // we're about to receive is our own write coming back. Skip the upsert
+      // so we don't bounce-process our own changes (and clear the flag).
+      if (topic === "order_updated") {
+        const { data: existing } = await admin
+          .from("orders")
+          .select("id, pending_self_update_until")
+          .eq("tenant_id", tenantId)
+          .eq("webbskap_order_id", webbskapOrderId)
+          .maybeSingle();
+        if (existing?.pending_self_update_until && new Date(existing.pending_self_update_until) > new Date()) {
+          await admin.from("orders").update({ pending_self_update_until: null }).eq("id", existing.id);
+          if (eventId) await admin.from("webhook_events").update({ processed: true, error: "self_patch_loop_skipped" }).eq("id", eventId);
+          return new Response(JSON.stringify({ ok: true, skipped: "self_patch_loop" }), {
+            headers: { "Content-Type": "application/json" },
+          });
+        }
+      }
+
       await admin.from("orders").upsert(
         {
           tenant_id: tenantId,
-          webbskap_order_id: String(order.id ?? order.invoiceNo),
+          webbskap_order_id: webbskapOrderId,
           invoice_no: order.invoiceNo != null ? String(order.invoiceNo) : null,
           customer_name: blank(order.customerName),
           customer_email: blank(order.customerEmail),

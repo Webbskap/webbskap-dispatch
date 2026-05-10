@@ -473,6 +473,14 @@ Deno.serve(async (req) => {
             : {};
 
         if (Object.keys(authHeaders).length) {
+          // Loop guard: mark this order so the order_updated webhook fired by
+          // our own PATCH doesn't bounce-process. 30s window is plenty for
+          // Webbskap to issue and deliver the webhook.
+          await admin
+            .from("orders")
+            .update({ pending_self_update_until: new Date(Date.now() + 30_000).toISOString() })
+            .eq("id", order.id);
+
           const r = await fetch(
             `https://${tenant.subdomain}.webbskap.se/api/site/orders/${order.webbskap_order_id}`,
             {
@@ -489,7 +497,14 @@ Deno.serve(async (req) => {
               }),
             },
           );
-          if (!r.ok) console.warn("Webbskap PATCH non-OK", { status: r.status, body: await r.text() });
+          if (!r.ok) {
+            // Clear the guard so a real future order_updated isn't missed
+            await admin
+              .from("orders")
+              .update({ pending_self_update_until: null })
+              .eq("id", order.id);
+            console.warn("Webbskap PATCH non-OK", { status: r.status, body: await r.text() });
+          }
         } else {
           console.warn("Webbskap PATCH skipped — no auth");
         }

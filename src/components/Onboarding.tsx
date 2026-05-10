@@ -176,8 +176,6 @@ export function Onboarding({ tenant, userId, onTenantUpdated }: { tenant: Tenant
 
   return (
     <div className="space-y-6 max-w-3xl">
-      {userId && <BillingSection userId={userId} />}
-
       {/* Status */}
       <Card className="p-6 space-y-3">
         <div className="flex items-center justify-between">

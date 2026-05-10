@@ -5,11 +5,12 @@ import { useSubscription } from "@/hooks/useSubscription";
 import { Onboarding } from "@/components/Onboarding";
 import { OrdersView } from "@/components/OrdersView";
 import { StatsView } from "@/components/StatsView";
+import { Profile } from "@/components/Profile";
 import { AuthForm } from "@/components/AuthForm";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { supabase } from "@/integrations/supabase/client";
-import { Lock, Package, Settings, LogOut, BarChart3 } from "lucide-react";
+import { Lock, Package, Settings, BarChart3, UserCircle } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 
 function PlanBadge({ sub, onClick }: { sub: any; onClick: () => void }) {
@@ -31,7 +32,7 @@ function PlanBadge({ sub, onClick }: { sub: any; onClick: () => void }) {
 export default function Index() {
   const { session, tenant, loading, error, refetchTenant } = useAuthAndTenant();
   const { isActive, loading: subLoading, subscription } = useSubscription(session?.user?.id);
-  const [tab, setTab] = useState<"orders" | "stats" | "settings">("orders");
+  const [tab, setTab] = useState<"orders" | "stats" | "settings" | "profile">("orders");
 
   if (loading) return <Centered>Laddar…</Centered>;
 
@@ -87,21 +88,13 @@ export default function Index() {
                 {shopUrl}
               </a>
             )}
-            <PlanBadge sub={subscription} onClick={() => setTab("settings")} />
+            <PlanBadge sub={subscription} onClick={() => setTab("profile")} />
           </div>
           <nav className="flex items-center gap-1">
             <NavBtn active={tab === "orders"} onClick={() => setTab("orders")} icon={<Package className="h-4 w-4" />} label="Ordrar" />
             <NavBtn active={tab === "stats"} onClick={() => setTab("stats")} icon={<BarChart3 className="h-4 w-4" />} label="Statistik" />
             <NavBtn active={tab === "settings"} onClick={() => setTab("settings")} icon={<Settings className="h-4 w-4" />} label="Inställningar" />
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => supabase.auth.signOut()}
-              title="Logga ut"
-              className="ml-1"
-            >
-              <LogOut className="h-4 w-4" />
-            </Button>
+            <NavBtn active={tab === "profile"} onClick={() => setTab("profile")} icon={<UserCircle className="h-4 w-4" />} label="Min profil" />
           </nav>
         </div>
       </header>
@@ -109,6 +102,7 @@ export default function Index() {
         {tab === "orders" && <OrdersView tenant={tenant} />}
         {tab === "stats" && <StatsView tenant={tenant} />}
         {tab === "settings" && <Onboarding tenant={tenant} userId={session.user.id} onTenantUpdated={refetchTenant} />}
+        {tab === "profile" && <Profile userId={session.user.id} email={session.user.email} />}
       </main>
     </div>
   );
