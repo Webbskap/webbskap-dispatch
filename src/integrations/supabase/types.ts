@@ -25,6 +25,7 @@ export type Database = {
           invoice_no: string | null
           items: Json
           paid: boolean | null
+          pending_self_update_until: string | null
           raw: Json | null
           requires_shipping: boolean
           shipping_address: Json | null
@@ -50,6 +51,7 @@ export type Database = {
           invoice_no?: string | null
           items?: Json
           paid?: boolean | null
+          pending_self_update_until?: string | null
           raw?: Json | null
           requires_shipping?: boolean
           shipping_address?: Json | null
@@ -75,6 +77,7 @@ export type Database = {
           invoice_no?: string | null
           items?: Json
           paid?: boolean | null
+          pending_self_update_until?: string | null
           raw?: Json | null
           requires_shipping?: boolean
           shipping_address?: Json | null
