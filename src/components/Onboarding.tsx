@@ -6,7 +6,6 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
-import { BillingSection } from "@/components/BillingSection";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { ChevronDown, Copy, Check, CheckCircle2, AlertCircle, Loader2, Sparkles } from "lucide-react";
@@ -176,8 +175,6 @@ export function Onboarding({ tenant, userId, onTenantUpdated }: { tenant: Tenant
 
   return (
     <div className="space-y-6 max-w-3xl">
-      {userId && <BillingSection userId={userId} />}
-
       {/* Status */}
       <Card className="p-6 space-y-3">
         <div className="flex items-center justify-between">
