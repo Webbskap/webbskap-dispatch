@@ -522,8 +522,8 @@ function OrderDetail({ order, draft, shipment, onChanged }: any) {
         open={pickerOpen}
         onOpenChange={setPickerOpen}
         recipient={{
-          postalCode: ship.zipCode ?? "",
-          countryCode: (ship.country ?? "SE").toUpperCase(),
+          postalCode: ship.zip ?? ship.zipCode ?? ship.postalCode ?? ship.postal_code ?? "",
+          countryCode: (ship.country ?? ship.countryCode ?? "SE").toUpperCase(),
           city: ship.city,
         }}
         selectedId={d.service_point_id}
