@@ -126,9 +126,17 @@ export function PickupModal({ open, onOpenChange, shipmentId, defaults, onBooked
     const { data, error } = await supabase.functions.invoke("book-pickup", { body });
     setBusy(false);
 
-    const res = data as any;
+    let res: any = data;
+    // supabase.functions.invoke sets `data=null` and `error` on non-2xx.
+    // Pull the JSON body out of the response so we can show the real reason.
+    if (error && (error as any)?.context?.json) {
+      try { res = await (error as any).context.json(); } catch { /* keep null */ }
+    }
     if (error || res?.error) {
-      toast.error(res?.message ?? res?.details ?? res?.error ?? error?.message ?? "Bokning misslyckades");
+      const msg =
+        res?.message ?? res?.details ?? res?.error ?? error?.message ?? "Bokning misslyckades";
+      console.error("book-pickup failed", { error, res });
+      toast.error(String(msg));
       return;
     }
     toast.success("Upphämtning bokad hos PostNord!");
