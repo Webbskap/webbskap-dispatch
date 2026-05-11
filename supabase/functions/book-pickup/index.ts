@@ -86,8 +86,10 @@ Deno.serve(async (req) => {
     const userId = userRes.user.id;
 
     const input = (await req.json()) as PickupInput;
-    if (!input?.pickup_date) return jsonResp({ error: "missing_pickup_date" }, 400);
+    console.log("book-pickup invoked", { userId, shipment_id: input?.shipment_id, pickup_date: input?.pickup_date, pickup_type: input?.pickup_type, parcels: input?.parcels, total_weight_kg: input?.total_weight_kg, has_address_override: !!(input?.pickup_address || input?.pickup_zip || input?.pickup_city) });
+    if (!input?.pickup_date) { console.warn("missing_pickup_date"); return jsonResp({ error: "missing_pickup_date" }, 400); }
     if (!input?.instruction || !input.instruction.trim()) {
+      console.warn("missing_instruction");
       return jsonResp({ error: "missing_instruction", details: "Skriv en upphämtningsinstruktion." }, 400);
     }
 
