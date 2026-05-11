@@ -68,16 +68,26 @@ export function ServicePointPicker({ open, onOpenChange, recipient, selectedId, 
   const [loading, setLoading] = useState(false);
   const [points, setPoints] = useState<ServicePoint[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [postalCode, setPostalCode] = useState(recipient.postalCode ?? "");
+  const [city, setCity] = useState(recipient.city ?? "");
 
-  const search = async () => {
-    if (!recipient.postalCode) {
-      setError("Mottagarens postnummer saknas.");
+  const search = async (overridePostal?: string, overrideCity?: string) => {
+    const zip = (overridePostal ?? postalCode ?? "").trim();
+    if (!zip) {
+      setError("Ange ett postnummer för att söka utlämningsställen.");
+      setPoints([]);
       return;
     }
     setLoading(true);
     setError(null);
     const { data, error: invErr } = await supabase.functions.invoke("find-service-points", {
-      body: recipient,
+      body: {
+        postalCode: zip,
+        countryCode: recipient.countryCode,
+        city: (overrideCity ?? city) || undefined,
+        streetName: recipient.streetName,
+        streetNumber: recipient.streetNumber,
+      },
     });
     setLoading(false);
     const res = data as any;
@@ -89,12 +99,20 @@ export function ServicePointPicker({ open, onOpenChange, recipient, selectedId, 
     setPoints(res?.servicePoints ?? []);
   };
 
-  // Auto-search when modal opens
+  // Auto-search when modal opens (or reset state)
   useEffect(() => {
     if (open) {
+      const initialZip = recipient.postalCode ?? "";
+      const initialCity = recipient.city ?? "";
+      setPostalCode(initialZip);
+      setCity(initialCity);
       setPoints([]);
       setError(null);
-      search();
+      if (initialZip.trim()) {
+        search(initialZip, initialCity);
+      } else {
+        setError("Mottagarens postnummer saknas. Ange ett postnummer nedan.");
+      }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
