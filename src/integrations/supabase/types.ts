@@ -208,6 +208,9 @@ export type Database = {
           receiver_override: Json | null
           sender_override: Json | null
           service_code: string | null
+          service_point_address: string | null
+          service_point_id: string | null
+          service_point_name: string | null
           status: Database["public"]["Enums"]["draft_status"]
           tenant_id: string
           updated_at: string
@@ -226,6 +229,9 @@ export type Database = {
           receiver_override?: Json | null
           sender_override?: Json | null
           service_code?: string | null
+          service_point_address?: string | null
+          service_point_id?: string | null
+          service_point_name?: string | null
           status?: Database["public"]["Enums"]["draft_status"]
           tenant_id: string
           updated_at?: string
@@ -244,6 +250,9 @@ export type Database = {
           receiver_override?: Json | null
           sender_override?: Json | null
           service_code?: string | null
+          service_point_address?: string | null
+          service_point_id?: string | null
+          service_point_name?: string | null
           status?: Database["public"]["Enums"]["draft_status"]
           tenant_id?: string
           updated_at?: string
@@ -278,6 +287,9 @@ export type Database = {
           pdf_storage_path: string | null
           pickup_booking_id: string | null
           postnord_response: Json | null
+          service_point_address: string | null
+          service_point_id: string | null
+          service_point_name: string | null
           status: Database["public"]["Enums"]["shipment_status"]
           status_history: Json | null
           tenant_id: string
@@ -294,6 +306,9 @@ export type Database = {
           pdf_storage_path?: string | null
           pickup_booking_id?: string | null
           postnord_response?: Json | null
+          service_point_address?: string | null
+          service_point_id?: string | null
+          service_point_name?: string | null
           status?: Database["public"]["Enums"]["shipment_status"]
           status_history?: Json | null
           tenant_id: string
@@ -310,6 +325,9 @@ export type Database = {
           pdf_storage_path?: string | null
           pickup_booking_id?: string | null
           postnord_response?: Json | null
+          service_point_address?: string | null
+          service_point_id?: string | null
+          service_point_name?: string | null
           status?: Database["public"]["Enums"]["shipment_status"]
           status_history?: Json | null
           tenant_id?: string
