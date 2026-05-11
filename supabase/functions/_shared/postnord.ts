@@ -75,26 +75,41 @@ export interface PostNordGoodsItem {
   packageTypeCode: "PC" | "PE" | "OA" | "AF" | "OF" | "EN" | "BX" | "PO" | "CW";
   goodsDescription?: string;
   items: Array<{
-    itemIdentification: { itemId: string; itemIdType: "SSCC" | "S10" | "DPD" | "ZZZ" };
+    // For EDI Instruction we send itemIdType (SSCC etc). For PickupBooking
+    // PostNord wants only itemId without the type field.
+    itemIdentification: { itemId: string; itemIdType?: "SSCC" | "S10" | "DPD" | "ZZZ" };
     grossWeight: { value: number; unit: "KGM" };
     references?: Array<{ referenceNo: string; referenceType: string }>;
   }>;
 }
 
+// Pickup-API uses { usageCode, text }; the EDI-instruction freeText differs.
+export interface PickupFreeText {
+  usageCode: string; // "ADS" for address/instruction
+  text: string;
+}
+
 export interface PostNordShipment {
   shipmentIdentification: { shipmentId: string };
-  dateAndTimes: { loadingDate: string };
+  // loadingDate for EDI Instruction; earliestPickupDate / latestPickupDate for PickupBooking
+  dateAndTimes: {
+    loadingDate?: string;
+    earliestPickupDate?: string;
+    latestPickupDate?: string;
+  };
   service: {
     basicServiceCode: string;
     additionalServiceCode?: string[];
   };
-  freeText?: Array<{ textSubjectCode: string; freeText: string }> | [];
-  numberOfPackages: { value: number };
+  // EDI Instruction uses { textSubjectCode, freeText }; PickupBooking uses { usageCode, text }
+  freeText?: Array<{ textSubjectCode: string; freeText: string } | PickupFreeText> | [];
+  numberOfPackages?: { value: number };
   totalGrossWeight: { value: number; unit: "KGM" };
+  totalVolume?: { value: number; unit: "MTQ" };
   references?: Array<{ referenceNo: string; referenceType: string }>;
   parties: {
     consignor: PostNordParty;
-    consignee: PostNordParty;
+    consignee?: PostNordParty;
     deliveryParty?: PostNordParty;
     pickupParty?: PostNordParty;
     returnParty?: PostNordParty;
@@ -104,7 +119,7 @@ export interface PostNordShipment {
 
 export interface PostNordEdiBody {
   messageDate: string;
-  messageFunction: "Instruction" | "BookingRequest";
+  messageFunction: "Instruction" | "BookingRequest" | "PickupBooking";
   messageId: string;
   application: { applicationId: number; name: string; version: string };
   updateIndicator: "Original" | "Replace" | "Cancellation";

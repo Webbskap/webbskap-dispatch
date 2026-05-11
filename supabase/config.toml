@@ -32,3 +32,6 @@ verify_jwt = false
 
 [functions.webbskap-site-info]
 verify_jwt = false
+
+[functions.book-pickup]
+verify_jwt = false

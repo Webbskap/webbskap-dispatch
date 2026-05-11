@@ -13,6 +13,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
 import { RefreshCw, Search, Package, Inbox, ExternalLink, FileText, Printer, Truck, MapPin } from "lucide-react";
+import { PickupModal, type PickupModalDefaults } from "@/components/PickupModal";
 
 const SERVICES: Array<{ code: string; name: string; domestic: boolean }> = [
   { code: "17", name: "MyPack Home (hemleverans)", domestic: true },
@@ -190,6 +191,7 @@ function OrderDetail({ order, draft, shipment, onChanged }: any) {
   const [busy, setBusy] = useState(false);
   const [tracking, setTracking] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
+  const [pickupOpen, setPickupOpen] = useState(false);
   useEffect(() => setD(draft ?? {}), [draft?.id]);
 
   const ship = order.shipping_address ?? {};
@@ -282,9 +284,21 @@ function OrderDetail({ order, draft, shipment, onChanged }: any) {
             <FileText className="h-4 w-4 mr-1.5" />Följesedel
           </Button>
           {shipment ? (
-            <Button onClick={downloadLabel}>
-              <Printer className="h-4 w-4 mr-1.5" />Ladda ner fraktsedel
-            </Button>
+            <>
+              <Button onClick={downloadLabel}>
+                <Printer className="h-4 w-4 mr-1.5" />Ladda ner fraktsedel
+              </Button>
+              {!shipment.pickup_booking_id && (
+                <Button variant="outline" onClick={() => setPickupOpen(true)}>
+                  <Truck className="h-4 w-4 mr-1.5" />Boka upphämtning
+                </Button>
+              )}
+              {shipment.pickup_booking_id && (
+                <Badge variant="secondary" className="self-center">
+                  <Truck className="h-3 w-3 mr-1" /> Upphämtning bokad
+                </Badge>
+              )}
+            </>
           ) : (
             <Button onClick={() => setConfirmOpen(true)} disabled={busy}>
               {busy ? "Bokar…" : "Boka & skriv fraktsedel"}
@@ -451,6 +465,18 @@ function OrderDetail({ order, draft, shipment, onChanged }: any) {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <PickupModal
+        open={pickupOpen}
+        onOpenChange={setPickupOpen}
+        shipmentId={shipment?.id}
+        defaults={{
+          parcels: shipment?.parcels ?? d?.parcels ?? 1,
+          total_weight_kg: shipment?.weight_kg ?? d?.weight_kg,
+          reference: order.invoice_no ?? order.webbskap_order_id,
+        }}
+        onBooked={onChanged}
+      />
     </Card>
   );
 }
