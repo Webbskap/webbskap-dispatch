@@ -86,8 +86,10 @@ Deno.serve(async (req) => {
     const userId = userRes.user.id;
 
     const input = (await req.json()) as PickupInput;
-    if (!input?.pickup_date) return jsonResp({ error: "missing_pickup_date" }, 400);
+    console.log("book-pickup invoked", { userId, shipment_id: input?.shipment_id, pickup_date: input?.pickup_date, pickup_type: input?.pickup_type, parcels: input?.parcels, total_weight_kg: input?.total_weight_kg, has_address_override: !!(input?.pickup_address || input?.pickup_zip || input?.pickup_city) });
+    if (!input?.pickup_date) { console.warn("missing_pickup_date"); return jsonResp({ error: "missing_pickup_date" }, 400); }
     if (!input?.instruction || !input.instruction.trim()) {
+      console.warn("missing_instruction");
       return jsonResp({ error: "missing_instruction", details: "Skriv en upphämtningsinstruktion." }, 400);
     }
 
@@ -139,13 +141,15 @@ Deno.serve(async (req) => {
       .eq("tenant_id", tenantId)
       .maybeSingle();
     if (!pnCfg) {
+      console.warn("postnord_not_configured (no row)", { tenantId });
       return jsonResp({ error: "postnord_not_configured", details: "PostNord-uppgifter saknas helt" }, 400);
     }
     const env = (pnCfg.environment ?? "sandbox") as "sandbox" | "live";
     const partnerKey = env === "live" ? POSTNORD_PARTNER_KEY_LIVE : POSTNORD_PARTNER_KEY_SANDBOX;
     const apiKey = pnCfg.api_key || partnerKey;
-    if (!apiKey) return jsonResp({ error: "postnord_not_configured", details: "API-nyckel saknas" }, 400);
+    if (!apiKey) { console.warn("missing api_key", { env, hasPartnerKey: !!partnerKey }); return jsonResp({ error: "postnord_not_configured", details: "API-nyckel saknas" }, 400); }
     if (!pnCfg.customer_number) {
+      console.warn("missing customer_number");
       return jsonResp({ error: "postnord_not_configured", details: "Kundnummer saknas" }, 400);
     }
     if (env === "live" && POSTNORD_APP_ID <= 0) {
@@ -157,6 +161,7 @@ Deno.serve(async (req) => {
 
     const issuer: IssuerCode = issuerFromCountry(pnCfg.sender_country);
     if (!isValidCustomerNumber(pnCfg.customer_number, issuer)) {
+      console.warn("invalid_customer_number", { customer_number: pnCfg.customer_number, issuer });
       return jsonResp({
         error: "invalid_customer_number",
         details: `Kundnummer ${pnCfg.customer_number} har fel längd för issuer ${issuer}.`,
@@ -188,12 +193,14 @@ Deno.serve(async (req) => {
       email: firstNonEmpty(input.pickup_email, pnCfg.sender_email),
     };
     if (!addr.address || !addr.zip || !addr.city) {
+      console.warn("pickup_address_incomplete", addr);
       return jsonResp({
         error: "pickup_address_incomplete",
         details: "Adress, postnummer och ort krävs för upphämtning.",
       }, 400);
     }
     if (!addr.name && !addr.company) {
+      console.warn("pickup_address_incomplete (no name)", addr);
       return jsonResp({
         error: "pickup_address_incomplete",
         details: "Namn eller företagsnamn krävs.",
@@ -202,6 +209,7 @@ Deno.serve(async (req) => {
     // PostNord requires a contact method (email or phone/sms) for the pickup party
     const phoneE164 = toE164(addr.phoneRaw, addr.country);
     if (!addr.email && !phoneE164) {
+      console.warn("pickup_contact_required", { phoneRaw: addr.phoneRaw, email: addr.email });
       return jsonResp({
         error: "pickup_contact_required",
         details: "Antingen e-post eller telefonnummer krävs för upphämtningskontakten.",
@@ -215,6 +223,8 @@ Deno.serve(async (req) => {
     if (!Number.isFinite(totalWeight) || totalWeight <= 0) {
       return jsonResp({ error: "missing_weight", details: "Ange vikt större än 0." }, 400);
     }
+
+    console.log("book-pickup proceeding to PostNord", { env, senderCountry, parcels, totalWeight, pickupType, addrSummary: { city: addr.city, country: addr.country, hasEmail: !!addr.email, hasPhone: !!phoneE164 } });
 
     // Persist the booking row up-front (status=pending) so we have audit even if PostNord call fails
     const { data: bookingRow, error: insErr } = await admin
