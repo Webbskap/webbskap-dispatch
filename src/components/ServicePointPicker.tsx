@@ -68,16 +68,26 @@ export function ServicePointPicker({ open, onOpenChange, recipient, selectedId, 
   const [loading, setLoading] = useState(false);
   const [points, setPoints] = useState<ServicePoint[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [postalCode, setPostalCode] = useState(recipient.postalCode ?? "");
+  const [city, setCity] = useState(recipient.city ?? "");
 
-  const search = async () => {
-    if (!recipient.postalCode) {
-      setError("Mottagarens postnummer saknas.");
+  const search = async (overridePostal?: string, overrideCity?: string) => {
+    const zip = (overridePostal ?? postalCode ?? "").trim();
+    if (!zip) {
+      setError("Ange ett postnummer för att söka utlämningsställen.");
+      setPoints([]);
       return;
     }
     setLoading(true);
     setError(null);
     const { data, error: invErr } = await supabase.functions.invoke("find-service-points", {
-      body: recipient,
+      body: {
+        postalCode: zip,
+        countryCode: recipient.countryCode,
+        city: (overrideCity ?? city) || undefined,
+        streetName: recipient.streetName,
+        streetNumber: recipient.streetNumber,
+      },
     });
     setLoading(false);
     const res = data as any;
@@ -89,12 +99,20 @@ export function ServicePointPicker({ open, onOpenChange, recipient, selectedId, 
     setPoints(res?.servicePoints ?? []);
   };
 
-  // Auto-search when modal opens
+  // Auto-search when modal opens (or reset state)
   useEffect(() => {
     if (open) {
+      const initialZip = recipient.postalCode ?? "";
+      const initialCity = recipient.city ?? "";
+      setPostalCode(initialZip);
+      setCity(initialCity);
       setPoints([]);
       setError(null);
-      search();
+      if (initialZip.trim()) {
+        search(initialZip, initialCity);
+      } else {
+        setError("Mottagarens postnummer saknas. Ange ett postnummer nedan.");
+      }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
@@ -113,9 +131,36 @@ export function ServicePointPicker({ open, onOpenChange, recipient, selectedId, 
             <MapPin className="h-5 w-5" /> Välj utlämningsställe
           </DialogTitle>
           <DialogDescription>
-            Närmaste PostNord-ombud för {recipient.postalCode} {recipient.city ?? ""}, {recipient.countryCode}.
+            Sök närmaste PostNord-ombud. Du kan justera postnummer och ort om mottagarens uppgifter saknas eller är fel.
           </DialogDescription>
         </DialogHeader>
+
+        <form
+          onSubmit={(e) => { e.preventDefault(); search(); }}
+          className="flex flex-wrap items-end gap-2 border-b pb-3"
+        >
+          <div className="flex-1 min-w-[120px]">
+            <label className="text-xs text-muted-foreground">Postnummer</label>
+            <input
+              value={postalCode}
+              onChange={(e) => setPostalCode(e.target.value)}
+              placeholder="831 45"
+              className="w-full rounded-md border bg-background px-2 py-1.5 text-sm"
+            />
+          </div>
+          <div className="flex-1 min-w-[140px]">
+            <label className="text-xs text-muted-foreground">Ort (valfritt)</label>
+            <input
+              value={city}
+              onChange={(e) => setCity(e.target.value)}
+              placeholder="Åsarna"
+              className="w-full rounded-md border bg-background px-2 py-1.5 text-sm"
+            />
+          </div>
+          <Button type="submit" size="sm" disabled={loading}>
+            <Search className="h-3 w-3 mr-1.5" /> Sök
+          </Button>
+        </form>
 
         <div className="flex-1 overflow-y-auto space-y-2 pr-1">
           {loading && (
@@ -127,9 +172,6 @@ export function ServicePointPicker({ open, onOpenChange, recipient, selectedId, 
           {error && !loading && (
             <Card className="p-4 text-sm">
               <div className="text-destructive">{error}</div>
-              <Button size="sm" variant="outline" onClick={search} className="mt-2">
-                <Search className="h-3 w-3 mr-1.5" /> Försök igen
-              </Button>
             </Card>
           )}
           {!loading && !error && points.length === 0 && (
