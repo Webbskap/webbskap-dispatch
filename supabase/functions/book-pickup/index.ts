@@ -99,14 +99,33 @@ Deno.serve(async (req) => {
     let tenantId: string | null = null;
     let linkedShipment: any = null;
     if (input.shipment_id) {
-      const { data: ship } = await admin
+      const { data: ship, error: shipErr } = await admin
         .from("shipments")
-        .select("id, tenant_id, weight_kg, parcels, pickup_booking_id, order_id")
+        .select("id, tenant_id, pickup_booking_id, order_id, draft_id")
         .eq("id", input.shipment_id)
-        .single();
-      if (!ship) return jsonResp({ error: "shipment_not_found" }, 404);
+        .maybeSingle();
+      if (shipErr) {
+        console.error("shipment lookup failed", shipErr);
+        return jsonResp({ error: "shipment_lookup_failed", details: shipErr.message }, 500);
+      }
+      if (!ship) {
+        console.warn("shipment_not_found", { shipment_id: input.shipment_id });
+        return jsonResp({ error: "shipment_not_found" }, 404);
+      }
       tenantId = ship.tenant_id;
-      linkedShipment = ship;
+      // Pull weight/parcels from the linked draft (shipments table doesn't have them)
+      let draftWeight: number | null = null;
+      let draftParcels: number | null = null;
+      if (ship.draft_id) {
+        const { data: draft } = await admin
+          .from("shipment_drafts")
+          .select("weight_kg, parcels")
+          .eq("id", ship.draft_id)
+          .maybeSingle();
+        draftWeight = draft?.weight_kg ?? null;
+        draftParcels = draft?.parcels ?? null;
+      }
+      linkedShipment = { ...ship, weight_kg: draftWeight, parcels: draftParcels };
       if (ship.pickup_booking_id) {
         return jsonResp({
           error: "shipment_already_has_pickup",
