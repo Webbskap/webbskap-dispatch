@@ -35,3 +35,9 @@ verify_jwt = false
 
 [functions.book-pickup]
 verify_jwt = false
+
+[functions.find-service-points]
+verify_jwt = false
+
+[functions.validate-postal-code]
+verify_jwt = false

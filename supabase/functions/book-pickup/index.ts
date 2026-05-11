@@ -51,7 +51,9 @@ function toE164(raw: string | undefined | null, country: string): string | undef
 }
 
 interface PickupInput {
-  // Either a shipment_id (per-order flow) OR explicit fields (standalone)
+  // Either an array of shipment_ids (per-order flow) OR explicit fields (standalone)
+  shipment_ids?: string[];
+  // Legacy single-id support for older clients
   shipment_id?: string;
   pickup_date: string;       // "YYYY-MM-DD"
   pickup_type?: "p1" | "p2"; // p1=biz, p2=private. Default p2.
@@ -95,43 +97,68 @@ Deno.serve(async (req) => {
 
     const admin = createClient(SUPABASE_URL, SERVICE_KEY, { auth: { persistSession: false } });
 
-    // Resolve tenant — either via shipment or via user's only tenant
+    // Normalise shipment-ids input (accept array or legacy single id)
+    const shipmentIds = Array.isArray(input.shipment_ids) && input.shipment_ids.length
+      ? input.shipment_ids
+      : input.shipment_id
+      ? [input.shipment_id]
+      : [];
+
+    // Resolve tenant — either via shipments or via user's only tenant
     let tenantId: string | null = null;
-    let linkedShipment: any = null;
-    if (input.shipment_id) {
-      const { data: ship, error: shipErr } = await admin
+    let linkedShipments: any[] = [];
+    if (shipmentIds.length) {
+      const { data: ships, error: shipErr } = await admin
         .from("shipments")
         .select("id, tenant_id, pickup_booking_id, order_id, draft_id")
-        .eq("id", input.shipment_id)
-        .maybeSingle();
+        .in("id", shipmentIds);
       if (shipErr) {
-        console.error("shipment lookup failed", shipErr);
+        console.error("shipments lookup failed", shipErr);
         return jsonResp({ error: "shipment_lookup_failed", details: shipErr.message }, 500);
       }
-      if (!ship) {
-        console.warn("shipment_not_found", { shipment_id: input.shipment_id });
+      if (!ships || ships.length === 0) {
         return jsonResp({ error: "shipment_not_found" }, 404);
       }
-      tenantId = ship.tenant_id;
-      // Pull weight/parcels from the linked draft (shipments table doesn't have them)
-      let draftWeight: number | null = null;
-      let draftParcels: number | null = null;
-      if (ship.draft_id) {
-        const { data: draft } = await admin
-          .from("shipment_drafts")
-          .select("weight_kg, parcels")
-          .eq("id", ship.draft_id)
-          .maybeSingle();
-        draftWeight = draft?.weight_kg ?? null;
-        draftParcels = draft?.parcels ?? null;
-      }
-      linkedShipment = { ...ship, weight_kg: draftWeight, parcels: draftParcels };
-      if (ship.pickup_booking_id) {
+      if (ships.length !== shipmentIds.length) {
         return jsonResp({
-          error: "shipment_already_has_pickup",
-          details: "Den här försändelsen har redan en upphämtning bokad.",
+          error: "shipment_not_found",
+          details: `Hittade bara ${ships.length} av ${shipmentIds.length} försändelser.`,
+        }, 404);
+      }
+      // All shipments must belong to the same tenant
+      const tenants = new Set(ships.map((s) => s.tenant_id));
+      if (tenants.size > 1) {
+        return jsonResp({
+          error: "multiple_tenants",
+          details: "Kan inte boka upphämtning för försändelser från olika tenants.",
         }, 400);
       }
+      tenantId = ships[0].tenant_id;
+
+      // None of them can already have a pickup booked
+      const already = ships.filter((s) => s.pickup_booking_id);
+      if (already.length) {
+        return jsonResp({
+          error: "shipment_already_has_pickup",
+          details: `${already.length} av valda försändelser har redan en upphämtning bokad.`,
+        }, 400);
+      }
+
+      // Pull weight/parcels from linked drafts to derive defaults if input omitted them
+      const draftIds = ships.map((s) => s.draft_id).filter(Boolean) as string[];
+      let drafts: Array<{ id: string; weight_kg: number | null; parcels: number | null }> = [];
+      if (draftIds.length) {
+        const { data: ds } = await admin
+          .from("shipment_drafts")
+          .select("id, weight_kg, parcels")
+          .in("id", draftIds);
+        drafts = ds ?? [];
+      }
+      const draftById = new Map(drafts.map((d) => [d.id, d]));
+      linkedShipments = ships.map((s) => {
+        const d = s.draft_id ? draftById.get(s.draft_id) : undefined;
+        return { ...s, weight_kg: d?.weight_kg ?? null, parcels: d?.parcels ?? null };
+      });
     } else {
       // Standalone — look up user's tenant
       const { data: role } = await admin
@@ -236,14 +263,22 @@ Deno.serve(async (req) => {
     }
 
     // Weight / parcels — explicit input takes precedence, otherwise derive
-    // from the linked shipment if any
-    const parcels = Math.max(1, Math.floor(Number(input.parcels ?? linkedShipment?.parcels ?? 1)));
-    const totalWeight = Number(input.total_weight_kg ?? linkedShipment?.weight_kg ?? 0);
+    // from linked shipments (summing if multiple).
+    const summedParcels = linkedShipments.reduce(
+      (acc, s) => acc + Math.max(1, Math.floor(Number(s.parcels ?? 1))),
+      0,
+    );
+    const summedWeight = linkedShipments.reduce(
+      (acc, s) => acc + Number(s.weight_kg ?? 0),
+      0,
+    );
+    const parcels = Math.max(1, Math.floor(Number(input.parcels ?? summedParcels ?? 1)));
+    const totalWeight = Number(input.total_weight_kg ?? summedWeight ?? 0);
     if (!Number.isFinite(totalWeight) || totalWeight <= 0) {
       return jsonResp({ error: "missing_weight", details: "Ange vikt större än 0." }, 400);
     }
 
-    console.log("book-pickup proceeding to PostNord", { env, senderCountry, parcels, totalWeight, pickupType, addrSummary: { city: addr.city, country: addr.country, hasEmail: !!addr.email, hasPhone: !!phoneE164 } });
+    console.log("book-pickup proceeding to PostNord", { env, senderCountry, parcels, totalWeight, pickupType, shipmentCount: linkedShipments.length, addrSummary: { city: addr.city, country: addr.country, hasEmail: !!addr.email, hasPhone: !!phoneE164 } });
 
     // Persist the booking row up-front (status=pending) so we have audit even if PostNord call fails
     const { data: bookingRow, error: insErr } = await admin
@@ -391,12 +426,12 @@ Deno.serve(async (req) => {
       .select()
       .single();
 
-    // Link to shipment if applicable
-    if (linkedShipment?.id) {
+    // Link all shipments to this pickup booking
+    if (linkedShipments.length) {
       await admin
         .from("shipments")
         .update({ pickup_booking_id: bookingRow.id })
-        .eq("id", linkedShipment.id);
+        .in("id", linkedShipments.map((s) => s.id));
     }
 
     return jsonResp({ ok: true, pickup: updated ?? bookingRow });
