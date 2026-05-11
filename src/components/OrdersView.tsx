@@ -13,7 +13,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
 import { RefreshCw, Search, Package, Inbox, ExternalLink, FileText, Printer, Truck, MapPin } from "lucide-react";
-import { PickupModal, type PickupModalDefaults } from "@/components/PickupModal";
+import { ServicePointPicker, type ServicePoint } from "@/components/ServicePointPicker";
 
 const SERVICES: Array<{ code: string; name: string; domestic: boolean }> = [
   { code: "17", name: "MyPack Home (hemleverans)", domestic: true },
@@ -191,7 +191,7 @@ function OrderDetail({ order, draft, shipment, onChanged }: any) {
   const [busy, setBusy] = useState(false);
   const [tracking, setTracking] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
-  const [pickupOpen, setPickupOpen] = useState(false);
+  const [pickerOpen, setPickerOpen] = useState(false);
   useEffect(() => setD(draft ?? {}), [draft?.id]);
 
   const ship = order.shipping_address ?? {};
@@ -204,8 +204,33 @@ function OrderDetail({ order, draft, shipment, onChanged }: any) {
       service_code: d.service_code, parcels: d.parcels ?? 1,
       weight_kg: d.weight_kg, length_cm: d.length_cm,
       width_cm: d.width_cm, height_cm: d.height_cm, notes: d.notes,
-    }).eq("id", d.id);
+      service_point_id: d.service_point_id ?? null,
+      service_point_name: d.service_point_name ?? null,
+      service_point_address: d.service_point_address ?? null,
+    } as any).eq("id", d.id);
     if (error) toast.error(error.message); else toast.success("Utkast sparat");
+  };
+
+  const handlePickServicePoint = async (sp: ServicePoint | null) => {
+    const next = {
+      ...d,
+      service_point_id: sp?.id ?? null,
+      service_point_name: sp?.name ?? null,
+      service_point_address: sp
+        ? [
+            [sp.delivery_address?.streetName, sp.delivery_address?.streetNumber].filter(Boolean).join(" "),
+            [sp.delivery_address?.postalCode, sp.delivery_address?.city].filter(Boolean).join(" "),
+          ].filter(Boolean).join(", ")
+        : null,
+    };
+    setD(next);
+    if (next.id) {
+      await supabase.from("shipment_drafts").update({
+        service_point_id: next.service_point_id,
+        service_point_name: next.service_point_name,
+        service_point_address: next.service_point_address,
+      } as any).eq("id", next.id);
+    }
   };
 
   const book = async () => {
@@ -288,14 +313,13 @@ function OrderDetail({ order, draft, shipment, onChanged }: any) {
               <Button onClick={downloadLabel}>
                 <Printer className="h-4 w-4 mr-1.5" />Ladda ner fraktsedel
               </Button>
-              {!shipment.pickup_booking_id && (
-                <Button variant="outline" onClick={() => setPickupOpen(true)}>
-                  <Truck className="h-4 w-4 mr-1.5" />Boka upphämtning
-                </Button>
-              )}
-              {shipment.pickup_booking_id && (
+              {shipment.pickup_booking_id ? (
                 <Badge variant="secondary" className="self-center">
                   <Truck className="h-3 w-3 mr-1" /> Upphämtning bokad
+                </Badge>
+              ) : (
+                <Badge variant="outline" className="self-center text-xs font-normal">
+                  Boka upphämtning under fliken "Upphämtning"
                 </Badge>
               )}
             </>
@@ -347,6 +371,34 @@ function OrderDetail({ order, draft, shipment, onChanged }: any) {
                 </SelectContent>
               </Select>
             </div>
+            {serviceCode === "19" && (
+              <div className="sm:col-span-2">
+                <Label>Utlämningsställe</Label>
+                {d.service_point_id ? (
+                  <div className="flex items-start justify-between gap-2 rounded-md border bg-muted/40 p-2.5">
+                    <div className="min-w-0">
+                      <div className="text-sm font-medium truncate flex items-center gap-1.5">
+                        <MapPin className="h-3.5 w-3.5 shrink-0" />
+                        {d.service_point_name ?? d.service_point_id}
+                      </div>
+                      {d.service_point_address && (
+                        <div className="text-xs text-muted-foreground truncate">
+                          {d.service_point_address}
+                        </div>
+                      )}
+                    </div>
+                    <Button variant="outline" size="sm" onClick={() => setPickerOpen(true)}>Byt</Button>
+                  </div>
+                ) : (
+                  <Button variant="outline" size="sm" onClick={() => setPickerOpen(true)} type="button">
+                    <MapPin className="h-3.5 w-3.5 mr-1.5" /> Välj utlämningsställe
+                  </Button>
+                )}
+                <p className="text-xs text-muted-foreground mt-1">
+                  Krävs för Service 19 (MyPack Collect). Paketet levereras hit för upphämtning.
+                </p>
+              </div>
+            )}
             <div className="sm:col-span-2">
               <Label>Förinställd storlek</Label>
               <Select
@@ -466,16 +518,16 @@ function OrderDetail({ order, draft, shipment, onChanged }: any) {
         </AlertDialogContent>
       </AlertDialog>
 
-      <PickupModal
-        open={pickupOpen}
-        onOpenChange={setPickupOpen}
-        shipmentId={shipment?.id}
-        defaults={{
-          parcels: shipment?.parcels ?? d?.parcels ?? 1,
-          total_weight_kg: shipment?.weight_kg ?? d?.weight_kg,
-          reference: order.invoice_no ?? order.webbskap_order_id,
+      <ServicePointPicker
+        open={pickerOpen}
+        onOpenChange={setPickerOpen}
+        recipient={{
+          postalCode: ship.zipCode ?? "",
+          countryCode: (ship.country ?? "SE").toUpperCase(),
+          city: ship.city,
         }}
-        onBooked={onChanged}
+        selectedId={d.service_point_id}
+        onPicked={handlePickServicePoint}
       />
     </Card>
   );

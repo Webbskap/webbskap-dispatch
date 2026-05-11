@@ -363,8 +363,14 @@ export function Onboarding({ tenant, userId, onTenantUpdated }: { tenant: Tenant
                   <Input value={pn.sender_name} onChange={(e) => setPn({ ...pn, sender_name: e.target.value })} /></div>
                 <div className="sm:col-span-2"><Label>Adress</Label>
                   <Input value={pn.sender_address} onChange={(e) => setPn({ ...pn, sender_address: e.target.value })} /></div>
-                <div><Label>Postnummer</Label>
-                  <Input value={pn.sender_zip} onChange={(e) => setPn({ ...pn, sender_zip: e.target.value })} /></div>
+                <div>
+                  <Label>Postnummer</Label>
+                  <PostalCodeInput
+                    value={pn.sender_zip}
+                    countryCode={pn.sender_country}
+                    onChange={(v) => setPn({ ...pn, sender_zip: v })}
+                  />
+                </div>
                 <div><Label>Ort</Label>
                   <Input value={pn.sender_city} onChange={(e) => setPn({ ...pn, sender_city: e.target.value })} /></div>
                 <div><Label>Land</Label>
@@ -380,6 +386,40 @@ export function Onboarding({ tenant, userId, onTenantUpdated }: { tenant: Tenant
       </Collapsible>
 
       <Button onClick={save} disabled={saving}>{saving ? "Sparar…" : "Spara inställningar"}</Button>
+    </div>
+  );
+}
+
+/** Postal-code input with debounced PostNord validation feedback. */
+function PostalCodeInput({
+  value, countryCode, onChange,
+}: { value: string; countryCode: string; onChange: (v: string) => void }) {
+  const [status, setStatus] = useState<"idle" | "checking" | "valid" | "invalid">("idle");
+
+  // Debounced validation
+  useEffect(() => {
+    const cleaned = (value ?? "").replace(/\s+/g, "");
+    if (!cleaned || cleaned.length < 3) { setStatus("idle"); return; }
+    setStatus("checking");
+    const id = window.setTimeout(async () => {
+      const { data, error } = await supabase.functions.invoke("validate-postal-code", {
+        body: { postalCode: cleaned, countryCode: countryCode || "SE" },
+      });
+      if (error) { setStatus("idle"); return; }
+      const res = data as any;
+      setStatus(res?.valid ? "valid" : "invalid");
+    }, 600);
+    return () => window.clearTimeout(id);
+  }, [value, countryCode]);
+
+  return (
+    <div className="relative">
+      <Input value={value} onChange={(e) => onChange(e.target.value)} />
+      <div className="absolute right-2 top-1/2 -translate-y-1/2 text-xs">
+        {status === "checking" && <span className="text-muted-foreground">…</span>}
+        {status === "valid" && <span className="text-green-600">✓</span>}
+        {status === "invalid" && <span className="text-amber-600" title="Postnumret verkar inte vara giltigt">⚠</span>}
+      </div>
     </div>
   );
 }

@@ -300,6 +300,25 @@ Deno.serve(async (req) => {
             },
           },
         },
+        // deliveryParty is the service point (utlämningsställe) for service 19
+        // with additional service A7. partyIdType "156" is PostNord's code for
+        // service-point id.
+        ...(draft.service_point_id
+          ? {
+              deliveryParty: {
+                partyIdentification: { partyId: String(draft.service_point_id), partyIdType: "156" as const },
+                party: {
+                  nameIdentification: { name: String(draft.service_point_name ?? "") },
+                  address: {
+                    streets: [String(draft.service_point_address ?? "")],
+                    postalCode: consigneeZip,
+                    city: consigneeCity,
+                    countryCode: consigneeCountry,
+                  },
+                },
+              },
+            }
+          : {}),
         // Note: no freightPayer block — PostNord v3 EDI uses consignor.partyIdentification
         // for billing identification. A separate freightPayer is not part of the schema.
       },
@@ -447,6 +466,9 @@ Deno.serve(async (req) => {
       pdf_storage_path: pdfPath,
       postnord_response: pnJson ?? { raw: pnText },
       status: "booked",
+      service_point_id: draft.service_point_id ?? null,
+      service_point_name: draft.service_point_name ?? null,
+      service_point_address: draft.service_point_address ?? null,
     }).select().single();
 
     await admin.from("shipment_drafts").update({ status: "booked" }).eq("id", draft_id);
