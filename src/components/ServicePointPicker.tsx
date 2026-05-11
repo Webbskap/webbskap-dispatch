@@ -131,9 +131,36 @@ export function ServicePointPicker({ open, onOpenChange, recipient, selectedId, 
             <MapPin className="h-5 w-5" /> Välj utlämningsställe
           </DialogTitle>
           <DialogDescription>
-            Närmaste PostNord-ombud för {recipient.postalCode} {recipient.city ?? ""}, {recipient.countryCode}.
+            Sök närmaste PostNord-ombud. Du kan justera postnummer och ort om mottagarens uppgifter saknas eller är fel.
           </DialogDescription>
         </DialogHeader>
+
+        <form
+          onSubmit={(e) => { e.preventDefault(); search(); }}
+          className="flex flex-wrap items-end gap-2 border-b pb-3"
+        >
+          <div className="flex-1 min-w-[120px]">
+            <label className="text-xs text-muted-foreground">Postnummer</label>
+            <input
+              value={postalCode}
+              onChange={(e) => setPostalCode(e.target.value)}
+              placeholder="831 45"
+              className="w-full rounded-md border bg-background px-2 py-1.5 text-sm"
+            />
+          </div>
+          <div className="flex-1 min-w-[140px]">
+            <label className="text-xs text-muted-foreground">Ort (valfritt)</label>
+            <input
+              value={city}
+              onChange={(e) => setCity(e.target.value)}
+              placeholder="Åsarna"
+              className="w-full rounded-md border bg-background px-2 py-1.5 text-sm"
+            />
+          </div>
+          <Button type="submit" size="sm" disabled={loading}>
+            <Search className="h-3 w-3 mr-1.5" /> Sök
+          </Button>
+        </form>
 
         <div className="flex-1 overflow-y-auto space-y-2 pr-1">
           {loading && (
@@ -145,9 +172,6 @@ export function ServicePointPicker({ open, onOpenChange, recipient, selectedId, 
           {error && !loading && (
             <Card className="p-4 text-sm">
               <div className="text-destructive">{error}</div>
-              <Button size="sm" variant="outline" onClick={search} className="mt-2">
-                <Search className="h-3 w-3 mr-1.5" /> Försök igen
-              </Button>
             </Card>
           )}
           {!loading && !error && points.length === 0 && (
