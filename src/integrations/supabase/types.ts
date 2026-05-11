@@ -103,6 +103,98 @@ export type Database = {
           },
         ]
       }
+      pickup_bookings: {
+        Row: {
+          booking_id: string | null
+          created_at: string
+          error: string | null
+          id: string
+          instruction: string
+          parcels: number
+          pickup_address: string
+          pickup_city: string
+          pickup_company: string | null
+          pickup_country: string
+          pickup_date: string
+          pickup_email: string | null
+          pickup_id: string | null
+          pickup_name: string
+          pickup_phone: string | null
+          pickup_type: string
+          pickup_zip: string
+          postnord_request: Json | null
+          postnord_response: Json | null
+          reference: string | null
+          status: string
+          tenant_id: string
+          total_weight_kg: number
+          tracking_url: string | null
+          updated_at: string
+        }
+        Insert: {
+          booking_id?: string | null
+          created_at?: string
+          error?: string | null
+          id?: string
+          instruction: string
+          parcels?: number
+          pickup_address: string
+          pickup_city: string
+          pickup_company?: string | null
+          pickup_country?: string
+          pickup_date: string
+          pickup_email?: string | null
+          pickup_id?: string | null
+          pickup_name: string
+          pickup_phone?: string | null
+          pickup_type?: string
+          pickup_zip: string
+          postnord_request?: Json | null
+          postnord_response?: Json | null
+          reference?: string | null
+          status?: string
+          tenant_id: string
+          total_weight_kg: number
+          tracking_url?: string | null
+          updated_at?: string
+        }
+        Update: {
+          booking_id?: string | null
+          created_at?: string
+          error?: string | null
+          id?: string
+          instruction?: string
+          parcels?: number
+          pickup_address?: string
+          pickup_city?: string
+          pickup_company?: string | null
+          pickup_country?: string
+          pickup_date?: string
+          pickup_email?: string | null
+          pickup_id?: string | null
+          pickup_name?: string
+          pickup_phone?: string | null
+          pickup_type?: string
+          pickup_zip?: string
+          postnord_request?: Json | null
+          postnord_response?: Json | null
+          reference?: string | null
+          status?: string
+          tenant_id?: string
+          total_weight_kg?: number
+          tracking_url?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pickup_bookings_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       shipment_drafts: {
         Row: {
           additional_services: Json | null
@@ -184,6 +276,7 @@ export type Database = {
           last_status_check: string | null
           order_id: string
           pdf_storage_path: string | null
+          pickup_booking_id: string | null
           postnord_response: Json | null
           status: Database["public"]["Enums"]["shipment_status"]
           status_history: Json | null
@@ -199,6 +292,7 @@ export type Database = {
           last_status_check?: string | null
           order_id: string
           pdf_storage_path?: string | null
+          pickup_booking_id?: string | null
           postnord_response?: Json | null
           status?: Database["public"]["Enums"]["shipment_status"]
           status_history?: Json | null
@@ -214,6 +308,7 @@ export type Database = {
           last_status_check?: string | null
           order_id?: string
           pdf_storage_path?: string | null
+          pickup_booking_id?: string | null
           postnord_response?: Json | null
           status?: Database["public"]["Enums"]["shipment_status"]
           status_history?: Json | null
@@ -234,6 +329,13 @@ export type Database = {
             columns: ["order_id"]
             isOneToOne: false
             referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "shipments_pickup_booking_id_fkey"
+            columns: ["pickup_booking_id"]
+            isOneToOne: false
+            referencedRelation: "pickup_bookings"
             referencedColumns: ["id"]
           },
           {
