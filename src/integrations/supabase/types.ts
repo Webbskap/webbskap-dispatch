@@ -209,6 +209,7 @@ export type Database = {
           sender_override: Json | null
           service_code: string | null
           service_point_address: string | null
+          service_point_hours: Json | null
           service_point_id: string | null
           service_point_name: string | null
           status: Database["public"]["Enums"]["draft_status"]
@@ -230,6 +231,7 @@ export type Database = {
           sender_override?: Json | null
           service_code?: string | null
           service_point_address?: string | null
+          service_point_hours?: Json | null
           service_point_id?: string | null
           service_point_name?: string | null
           status?: Database["public"]["Enums"]["draft_status"]
@@ -251,6 +253,7 @@ export type Database = {
           sender_override?: Json | null
           service_code?: string | null
           service_point_address?: string | null
+          service_point_hours?: Json | null
           service_point_id?: string | null
           service_point_name?: string | null
           status?: Database["public"]["Enums"]["draft_status"]
@@ -288,6 +291,7 @@ export type Database = {
           pickup_booking_id: string | null
           postnord_response: Json | null
           service_point_address: string | null
+          service_point_hours: Json | null
           service_point_id: string | null
           service_point_name: string | null
           status: Database["public"]["Enums"]["shipment_status"]
@@ -307,6 +311,7 @@ export type Database = {
           pickup_booking_id?: string | null
           postnord_response?: Json | null
           service_point_address?: string | null
+          service_point_hours?: Json | null
           service_point_id?: string | null
           service_point_name?: string | null
           status?: Database["public"]["Enums"]["shipment_status"]
@@ -326,6 +331,7 @@ export type Database = {
           pickup_booking_id?: string | null
           postnord_response?: Json | null
           service_point_address?: string | null
+          service_point_hours?: Json | null
           service_point_id?: string | null
           service_point_name?: string | null
           status?: Database["public"]["Enums"]["shipment_status"]
