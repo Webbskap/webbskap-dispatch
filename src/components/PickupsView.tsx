@@ -255,35 +255,64 @@ function PickupBuilder({
       </div>
 
       <div className="space-y-1 max-h-72 overflow-y-auto pr-1">
-        {waiting.map((s) => {
-          const order = s.order_id ? orders[s.order_id] : null;
-          const draft = s.draft_id ? drafts[s.draft_id] : null;
-          const isSelected = selected.has(s.id);
-          return (
-            <label
-              key={s.id}
-              className={`flex items-start gap-3 p-2 rounded-md cursor-pointer hover:bg-accent ${
-                isSelected ? "bg-accent" : ""
-              }`}
-            >
-              <Checkbox checked={isSelected} onCheckedChange={() => toggle(s.id)} className="mt-1" />
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2 flex-wrap">
-                  <span className="font-medium text-sm">
-                    #{order?.invoice_no ?? order?.webbskap_order_id ?? "—"}
-                  </span>
-                  {order?.customer_name && (
-                    <span className="text-sm text-muted-foreground truncate">{order.customer_name}</span>
-                  )}
+        {(() => {
+          // Group waiting shipments by city for easier scanning
+          const groups: Record<string, Shipment[]> = {};
+          for (const s of waiting) {
+            const o = s.order_id ? orders[s.order_id] : null;
+            const addr = (o?.shipping_address ?? {}) as any;
+            const city = (addr.city ?? addr.City ?? "Okänd ort").toString();
+            (groups[city] ??= []).push(s);
+          }
+          const cityNames = Object.keys(groups).sort((a, b) => a.localeCompare(b, "sv"));
+          return cityNames.map((cityName) => (
+            <div key={cityName}>
+              {cityNames.length > 1 && (
+                <div className="text-xs font-medium text-muted-foreground uppercase tracking-wide px-2 pt-2 pb-1">
+                  {cityName} ({groups[cityName].length})
                 </div>
-                <div className="text-xs text-muted-foreground">
-                  {draft?.parcels ?? 1} kollin · {draft?.weight_kg ?? "?"} kg
-                  {s.tracking_no && <> · <span className="font-mono">{s.tracking_no}</span></>}
-                </div>
-              </div>
-            </label>
-          );
-        })}
+              )}
+              {groups[cityName].map((s) => {
+                const order = s.order_id ? orders[s.order_id] : null;
+                const draft = s.draft_id ? drafts[s.draft_id] : null;
+                const isSelected = selected.has(s.id);
+                const addr = (order?.shipping_address ?? {}) as any;
+                const country = (addr.country ?? addr.countryCode ?? "").toString().toUpperCase();
+                return (
+                  <label
+                    key={s.id}
+                    className={`flex items-start gap-3 p-2 rounded-md cursor-pointer hover:bg-accent ${
+                      isSelected ? "bg-accent" : ""
+                    }`}
+                  >
+                    <Checkbox checked={isSelected} onCheckedChange={() => toggle(s.id)} className="mt-1" />
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="font-medium text-sm">
+                          #{order?.invoice_no ?? order?.webbskap_order_id ?? "—"}
+                        </span>
+                        {order?.customer_name && (
+                          <span className="text-sm truncate">{order.customer_name}</span>
+                        )}
+                        {country && country !== "SE" && (
+                          <Badge variant="outline" className="text-[10px] px-1.5 py-0">{country}</Badge>
+                        )}
+                      </div>
+                      <div className="text-xs text-muted-foreground">
+                        {draft?.parcels ?? 1} {(draft?.parcels ?? 1) === 1 ? "kolli" : "kollin"}
+                        {" · "}
+                        {draft?.weight_kg != null ? `${draft.weight_kg} kg` : "vikt saknas"}
+                        {s.tracking_no && (
+                          <> · <span className="font-mono">{s.tracking_no}</span></>
+                        )}
+                      </div>
+                    </div>
+                  </label>
+                );
+              })}
+            </div>
+          ));
+        })()}
       </div>
 
       {selected.size > 0 && (

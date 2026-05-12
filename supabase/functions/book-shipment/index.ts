@@ -469,6 +469,7 @@ Deno.serve(async (req) => {
       service_point_id: draft.service_point_id ?? null,
       service_point_name: draft.service_point_name ?? null,
       service_point_address: draft.service_point_address ?? null,
+      service_point_hours: draft.service_point_hours ?? null,
     }).select().single();
 
     await admin.from("shipment_drafts").update({ status: "booked" }).eq("id", draft_id);

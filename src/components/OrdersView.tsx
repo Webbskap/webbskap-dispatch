@@ -13,7 +13,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
 import { RefreshCw, Search, Package, Inbox, ExternalLink, FileText, Printer, Truck, MapPin } from "lucide-react";
-import { ServicePointPicker, type ServicePoint } from "@/components/ServicePointPicker";
+import { ServicePointPicker, type ServicePoint, ServicePointHoursTable } from "@/components/ServicePointPicker";
 
 const SERVICES: Array<{ code: string; name: string; domestic: boolean }> = [
   { code: "17", name: "MyPack Home (hemleverans)", domestic: true },
@@ -207,6 +207,7 @@ function OrderDetail({ order, draft, shipment, onChanged }: any) {
       service_point_id: d.service_point_id ?? null,
       service_point_name: d.service_point_name ?? null,
       service_point_address: d.service_point_address ?? null,
+      service_point_hours: d.service_point_hours ?? null,
     } as any).eq("id", d.id);
     if (error) toast.error(error.message); else toast.success("Utkast sparat");
   };
@@ -222,6 +223,7 @@ function OrderDetail({ order, draft, shipment, onChanged }: any) {
             [sp.delivery_address?.postalCode, sp.delivery_address?.city].filter(Boolean).join(" "),
           ].filter(Boolean).join(", ")
         : null,
+      service_point_hours: sp?.opening_hours ?? null,
     };
     setD(next);
     if (next.id) {
@@ -229,6 +231,7 @@ function OrderDetail({ order, draft, shipment, onChanged }: any) {
         service_point_id: next.service_point_id,
         service_point_name: next.service_point_name,
         service_point_address: next.service_point_address,
+        service_point_hours: next.service_point_hours,
       } as any).eq("id", next.id);
     }
   };
@@ -375,19 +378,31 @@ function OrderDetail({ order, draft, shipment, onChanged }: any) {
               <div className="sm:col-span-2">
                 <Label>Utlämningsställe</Label>
                 {d.service_point_id ? (
-                  <div className="flex items-start justify-between gap-2 rounded-md border bg-muted/40 p-2.5">
-                    <div className="min-w-0">
-                      <div className="text-sm font-medium truncate flex items-center gap-1.5">
-                        <MapPin className="h-3.5 w-3.5 shrink-0" />
-                        {d.service_point_name ?? d.service_point_id}
-                      </div>
-                      {d.service_point_address && (
-                        <div className="text-xs text-muted-foreground truncate">
-                          {d.service_point_address}
+                  <div className="rounded-md border bg-muted/40 p-2.5 space-y-2">
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="min-w-0 flex-1">
+                        <div className="text-sm font-medium truncate flex items-center gap-1.5">
+                          <MapPin className="h-3.5 w-3.5 shrink-0" />
+                          {d.service_point_name ?? d.service_point_id}
                         </div>
-                      )}
+                        {d.service_point_address && (
+                          <div className="text-xs text-muted-foreground truncate">
+                            {d.service_point_address}
+                          </div>
+                        )}
+                      </div>
+                      <Button variant="outline" size="sm" onClick={() => setPickerOpen(true)}>Byt</Button>
                     </div>
-                    <Button variant="outline" size="sm" onClick={() => setPickerOpen(true)}>Byt</Button>
+                    {Array.isArray(d.service_point_hours) && d.service_point_hours.length > 0 && (
+                      <details className="text-xs">
+                        <summary className="cursor-pointer text-muted-foreground hover:text-foreground select-none">
+                          Visa öppettider
+                        </summary>
+                        <div className="pt-2 pl-3 border-l-2 border-muted">
+                          <ServicePointHoursTable hours={d.service_point_hours} />
+                        </div>
+                      </details>
+                    )}
                   </div>
                 ) : (
                   <Button variant="outline" size="sm" onClick={() => setPickerOpen(true)} type="button">
@@ -521,11 +536,21 @@ function OrderDetail({ order, draft, shipment, onChanged }: any) {
       <ServicePointPicker
         open={pickerOpen}
         onOpenChange={setPickerOpen}
-        recipient={{
-          postalCode: ship.zip ?? ship.zipCode ?? ship.postalCode ?? ship.postal_code ?? "",
-          countryCode: (ship.country ?? ship.countryCode ?? "SE").toUpperCase(),
-          city: ship.city,
-        }}
+        recipient={(() => {
+          const raw = String(ship.address ?? "").trim();
+          // Split "Storgatan 12B" into street name + number. Swedish addresses
+          // commonly have the number at the end with an optional letter suffix.
+          const m = raw.match(/^(.+?)\s+(\d+\s*[A-Za-z]?)\s*$/);
+          const streetName = m ? m[1].trim() : raw || undefined;
+          const streetNumber = m ? m[2].replace(/\s+/g, "") : undefined;
+          return {
+            postalCode: ship.zip ?? ship.zipCode ?? ship.postalCode ?? ship.postal_code ?? "",
+            countryCode: (ship.country ?? ship.countryCode ?? "SE").toUpperCase(),
+            city: ship.city,
+            streetName,
+            streetNumber,
+          };
+        })()}
         selectedId={d.service_point_id}
         onPicked={handlePickServicePoint}
       />
