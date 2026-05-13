@@ -454,3 +454,35 @@ function PostalCodeInput({
     </div>
   );
 }
+
+function AdditionalServiceCheckbox({
+  code, label, description, pn, setPn,
+}: {
+  code: string;
+  label: string;
+  description: string;
+  pn: { default_additional_services: string[] };
+  setPn: (next: any) => void;
+}) {
+  const checked = Array.isArray(pn.default_additional_services) && pn.default_additional_services.includes(code);
+  const toggle = () => {
+    const cur = new Set(pn.default_additional_services ?? []);
+    if (cur.has(code)) cur.delete(code); else cur.add(code);
+    setPn({ ...pn, default_additional_services: Array.from(cur) });
+  };
+  return (
+    <label className="flex items-start gap-2.5 cursor-pointer text-sm">
+      <input
+        type="checkbox"
+        checked={checked}
+        onChange={toggle}
+        className="mt-0.5 h-4 w-4 rounded border-input"
+      />
+      <span className="flex-1">
+        <span className="font-medium">{label}</span>{" "}
+        <span className="text-muted-foreground font-mono text-xs">({code})</span>
+        <span className="block text-xs text-muted-foreground">{description}</span>
+      </span>
+    </label>
+  );
+}
