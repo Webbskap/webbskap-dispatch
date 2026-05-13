@@ -142,12 +142,12 @@ Deno.serve(async (req) => {
       return jsonResp({ error: "sender_incomplete", details: "Avsändarnamn eller företagsnamn krävs" }, 400);
     }
 
-    const consigneeName = firstNonEmpty(ship.name, order.customer_name);
-    const consigneeAddress = clean(ship.address);
-    const consigneeZip = clean(ship.zipCode);
-    const consigneeCity = clean(ship.city);
-    const consigneeCountry = (clean(ship.country) ?? "SE").toUpperCase();
-    const consigneePhone = clean(ship.phone);
+    const consigneeName = firstNonEmpty(ship.name, ship.fullName, ship.full_name, order.customer_name);
+    const consigneeAddress = firstNonEmpty(ship.address, ship.address1, ship.address_line1, ship.street, ship.streetAddress);
+    const consigneeZip = firstNonEmpty(ship.zipCode, ship.zip, ship.postalCode, ship.postal_code);
+    const consigneeCity = firstNonEmpty(ship.city, ship.town);
+    const consigneeCountry = (firstNonEmpty(ship.country, ship.countryCode, ship.country_code) ?? "SE").toUpperCase();
+    const consigneePhone = firstNonEmpty(ship.phone, ship.phoneNumber, ship.phone_number, order.customer_phone);
     const consigneeEmail = clean(order.customer_email);
 
     const COUNTRY_CALLING_CODES: Record<string, string> = { SE: "46", DK: "45", NO: "47", FI: "358" };
