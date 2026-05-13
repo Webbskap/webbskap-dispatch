@@ -348,6 +348,29 @@ export function Onboarding({ tenant, userId, onTenantUpdated }: { tenant: Tenant
               <p className="text-xs text-muted-foreground mt-1">17 = Mypack Home, 18 = Parcel, 19 = Mypack Collect</p>
             </div>
             <div>
+              <Label>Standardtilläggstjänster</Label>
+              <div className="space-y-2 mt-1.5">
+                <AdditionalServiceCheckbox
+                  code="A4" label="Avisering via e-post"
+                  description="Krävs för Service 19 om kunden inte har telefonnummer."
+                  pn={pn} setPn={setPn}
+                />
+                <AdditionalServiceCheckbox
+                  code="A3" label="Avisering via SMS"
+                  description="Krävs för Service 19 om kunden inte har e-post."
+                  pn={pn} setPn={setPn}
+                />
+                <AdditionalServiceCheckbox
+                  code="C7" label="FlexChange"
+                  description="Tillåter mottagaren att ändra leverans. Krävs för Service 17."
+                  pn={pn} setPn={setPn}
+                />
+              </div>
+              <p className="text-xs text-muted-foreground mt-2">
+                Appliceras automatiskt på alla nya bokningar. Per-order-justering finns under Ordrar.
+              </p>
+            </div>
+            <div>
               <Label>Etikettformat</Label>
               <Select
                 value={pn.default_label_format}
