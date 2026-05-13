@@ -207,6 +207,17 @@ Deno.serve(async (req) => {
       }
     }
 
+    // Smart default for Service 19 (MyPack Collect): PostNord requires a
+    // notification service (A2/A3/A4). If none is set, auto-pick based on
+    // what contact info the recipient has.
+    if (serviceCode === "19") {
+      const hasNotif = additionalServiceCodes.some((c) => ["A2", "A3", "A4"].includes(c.toUpperCase()));
+      if (!hasNotif) {
+        if (consigneeEmail) additionalServiceCodes.push("A4");
+        else if (consigneeSms || consigneePhone) additionalServiceCodes.push("A3");
+      }
+    }
+
     const ruleErr = validateServiceRules(
       serviceCode,
       additionalServiceCodes,

@@ -54,6 +54,7 @@ export function Onboarding({ tenant, userId, onTenantUpdated }: { tenant: Tenant
   const [pn, setPn] = useState({
     api_key: "", customer_number: "", default_service_code: "17",
     default_label_format: "A4",
+    default_additional_services: [] as string[],
     sender_name: "", sender_company: "", sender_address: "",
     sender_zip: "", sender_city: "", sender_country: "SE",
     sender_phone: "", sender_email: "",
@@ -75,7 +76,14 @@ export function Onboarding({ tenant, userId, onTenantUpdated }: { tenant: Tenant
           .eq("tenant_id", tenant.id).order("received_at", { ascending: false }).limit(1).maybeSingle(),
       ]);
       if (w) setWb({ website_api_key: w.website_api_key ?? "", webhook_secret: w.webhook_secret ?? "" });
-      if (p) setPn((prev) => ({ ...prev, ...p, environment: ((p as any).environment ?? "sandbox") as "sandbox" | "live" }));
+      if (p) setPn((prev) => ({
+        ...prev,
+        ...(p as any),
+        default_additional_services: Array.isArray((p as any).default_additional_services)
+          ? (p as any).default_additional_services
+          : [],
+        environment: ((p as any).environment ?? "sandbox") as "sandbox" | "live",
+      }));
       if (ev) setLastEvent(ev);
     })();
     // eslint-disable-next-line
@@ -340,6 +348,29 @@ export function Onboarding({ tenant, userId, onTenantUpdated }: { tenant: Tenant
               <p className="text-xs text-muted-foreground mt-1">17 = Mypack Home, 18 = Parcel, 19 = Mypack Collect</p>
             </div>
             <div>
+              <Label>Standardtilläggstjänster</Label>
+              <div className="space-y-2 mt-1.5">
+                <AdditionalServiceCheckbox
+                  code="A4" label="Avisering via e-post"
+                  description="Krävs för Service 19 om kunden inte har telefonnummer."
+                  pn={pn} setPn={setPn}
+                />
+                <AdditionalServiceCheckbox
+                  code="A3" label="Avisering via SMS"
+                  description="Krävs för Service 19 om kunden inte har e-post."
+                  pn={pn} setPn={setPn}
+                />
+                <AdditionalServiceCheckbox
+                  code="C7" label="FlexChange"
+                  description="Tillåter mottagaren att ändra leverans. Krävs för Service 17."
+                  pn={pn} setPn={setPn}
+                />
+              </div>
+              <p className="text-xs text-muted-foreground mt-2">
+                Appliceras automatiskt på alla nya bokningar. Per-order-justering finns under Ordrar.
+              </p>
+            </div>
+            <div>
               <Label>Etikettformat</Label>
               <Select
                 value={pn.default_label_format}
@@ -421,5 +452,37 @@ function PostalCodeInput({
         {status === "invalid" && <span className="text-amber-600" title="Postnumret verkar inte vara giltigt">⚠</span>}
       </div>
     </div>
+  );
+}
+
+function AdditionalServiceCheckbox({
+  code, label, description, pn, setPn,
+}: {
+  code: string;
+  label: string;
+  description: string;
+  pn: { default_additional_services: string[] };
+  setPn: (next: any) => void;
+}) {
+  const checked = Array.isArray(pn.default_additional_services) && pn.default_additional_services.includes(code);
+  const toggle = () => {
+    const cur = new Set(pn.default_additional_services ?? []);
+    if (cur.has(code)) cur.delete(code); else cur.add(code);
+    setPn({ ...pn, default_additional_services: Array.from(cur) });
+  };
+  return (
+    <label className="flex items-start gap-2.5 cursor-pointer text-sm">
+      <input
+        type="checkbox"
+        checked={checked}
+        onChange={toggle}
+        className="mt-0.5 h-4 w-4 rounded border-input"
+      />
+      <span className="flex-1">
+        <span className="font-medium">{label}</span>{" "}
+        <span className="text-muted-foreground font-mono text-xs">({code})</span>
+        <span className="block text-xs text-muted-foreground">{description}</span>
+      </span>
+    </label>
   );
 }
