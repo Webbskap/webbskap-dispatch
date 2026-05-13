@@ -62,13 +62,44 @@ Deno.serve(async (req) => {
       return jsonResp({ valid: false, error: "postnord_failed", body }, 200);
     }
 
-    // PostNord returns either an array of results or { compositeFault: {...} }
-    // A valid postal code yields an entry with status "OK" or similar.
-    const first = Array.isArray(body) ? body[0] : body?.[0];
-    const status = first?.status ?? first?.validationResult ?? null;
-    const valid = !!(status && /ok|valid/i.test(status)) || (!body?.compositeFault && r.status === 200 && !!first);
-
-    return jsonResp({ valid, cleaned, country: cc, raw: body });
+    // PostNord response shapes for this endpoint:
+    //  - HTTP 200 with an array per submitted postal code; each element has
+    //    a `status` field. "OK" means valid; anything else (e.g. "INVALID",
+    //    "NOT_FOUND") means not valid.
+    //  - HTTP 200 with `{ compositeFault: { faults: [...] }}` if the whole
+    //    request was malformed (e.g. missing countryCode).
+    //  - Per-element error: an object with a `errorResponse` or `fault` key
+    //    instead of `status`.
+    //
+    // Be strict: only return valid=true on an explicit OK signal. Anything
+    // ambiguous → valid=false so the UI shows a warning rather than a false
+    // green check.
+    if (body?.compositeFault?.faults?.length) {
+      const f = body.compositeFault.faults[0];
+      return jsonResp({
+        valid: false,
+        cleaned, country: cc,
+        reason: "fault",
+        message: f?.explanationText ?? "PostNord avvisade förfrågan",
+        code: f?.faultCode ?? null,
+      });
+    }
+    const first = Array.isArray(body) ? body[0] : null;
+    if (!first) {
+      // Couldn't make sense of the response — don't claim valid
+      return jsonResp({
+        valid: false, cleaned, country: cc,
+        reason: "unknown_response",
+      });
+    }
+    const status = typeof first.status === "string" ? first.status.toUpperCase() : null;
+    const isOk = status === "OK";
+    return jsonResp({
+      valid: isOk,
+      cleaned, country: cc,
+      reason: isOk ? "ok" : (status ?? "no_status"),
+      raw: body,
+    });
   } catch (e: any) {
     console.error("validate-postal-code error", e);
     return jsonResp({ error: String(e?.message ?? e) }, 500);

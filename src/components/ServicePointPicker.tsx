@@ -139,7 +139,9 @@ export function ServicePointPicker({ open, onOpenChange, recipient, selectedId, 
     setLoading(false);
     const res = data as any;
     if (invErr || res?.error) {
-      setError(res?.error ?? invErr?.message ?? "Kunde inte hämta utlämningsställen");
+      // Prefer PostNord's explanation when available (postnord_fault response shape)
+      const msg = res?.message ?? res?.error ?? invErr?.message ?? "Kunde inte hämta utlämningsställen";
+      setError(msg);
       setPoints([]);
       return;
     }

@@ -77,8 +77,19 @@ Deno.serve(async (req) => {
       return jsonResp({ error: "postnord_failed", status: r.status, body }, 400);
     }
 
-    // PostNord wraps the array in servicePointInformationResponse.servicePoints
-    const list: any[] = body?.servicePointInformationResponse?.servicePoints ?? [];
+    // PostNord can return HTTP 200 with a compositeFault wrapper instead of
+    // results. Check before assuming the array is just empty.
+    const wrapper = body?.servicePointInformationResponse;
+    const faults: any[] = wrapper?.compositeFault?.faults ?? [];
+    if (faults.length > 0) {
+      const message = faults[0]?.explanationText ?? wrapper?.message ?? "Okänt fel från PostNord";
+      const code = faults[0]?.faultCode ?? null;
+      console.error("service points returned fault", { code, message, faults });
+      return jsonResp({ error: "postnord_fault", message, code, faults }, 400);
+    }
+
+    // Normalise the array (servicePoints is the field name on success)
+    const list: any[] = wrapper?.servicePoints ?? [];
     const normalized = list.map((sp) => ({
       id: sp.servicePointId,
       name: sp.name,

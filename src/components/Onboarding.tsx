@@ -426,19 +426,33 @@ function PostalCodeInput({
   value, countryCode, onChange,
 }: { value: string; countryCode: string; onChange: (v: string) => void }) {
   const [status, setStatus] = useState<"idle" | "checking" | "valid" | "invalid">("idle");
+  const [reason, setReason] = useState<string | null>(null);
 
   // Debounced validation
   useEffect(() => {
     const cleaned = (value ?? "").replace(/\s+/g, "");
-    if (!cleaned || cleaned.length < 3) { setStatus("idle"); return; }
+    if (!cleaned || cleaned.length < 3) { setStatus("idle"); setReason(null); return; }
     setStatus("checking");
+    setReason(null);
     const id = window.setTimeout(async () => {
       const { data, error } = await supabase.functions.invoke("validate-postal-code", {
         body: { postalCode: cleaned, countryCode: countryCode || "SE" },
       });
-      if (error) { setStatus("idle"); return; }
+      if (error) { setStatus("idle"); setReason(null); return; }
       const res = data as any;
       setStatus(res?.valid ? "valid" : "invalid");
+      // Backend returns a `reason` field on invalid; show as tooltip
+      if (!res?.valid) {
+        setReason(
+          res?.message
+          ?? (res?.reason === "fault" ? "PostNord avvisade förfrågan"
+              : res?.reason === "unknown_response" ? "Oväntat svar från PostNord"
+              : res?.reason ? `Status: ${res.reason}`
+              : "Postnumret verkar inte vara giltigt"),
+        );
+      } else {
+        setReason(null);
+      }
     }, 600);
     return () => window.clearTimeout(id);
   }, [value, countryCode]);
@@ -449,7 +463,9 @@ function PostalCodeInput({
       <div className="absolute right-2 top-1/2 -translate-y-1/2 text-xs">
         {status === "checking" && <span className="text-muted-foreground">…</span>}
         {status === "valid" && <span className="text-green-600">✓</span>}
-        {status === "invalid" && <span className="text-amber-600" title="Postnumret verkar inte vara giltigt">⚠</span>}
+        {status === "invalid" && (
+          <span className="text-amber-600" title={reason ?? "Postnumret verkar inte vara giltigt"}>⚠</span>
+        )}
       </div>
     </div>
   );
